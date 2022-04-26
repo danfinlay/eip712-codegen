@@ -1,170 +1,101 @@
-const fs = require('fs');
-const path = require('path');
-const {
-  signTypedData,
-  TypedDataUtils,
-  typedSignatureHash,
-  SignTypedDataVersion,
-  encodeData,
-  encodeType,
-} = require('signtypeddata-v5').TypedDataUtils;
-
-const generateFile = (types, methods, log = false) => `pragma solidity ^0.8.13;
-// SPDX-License-Identifier: MIT
-${log ? 'import "hardhat/console.log";' : ''}
-
-${types}
-
-contract EIP712Decoder {
-
-  /**
-  * @dev Recover signer address from a message by using their signature
-  * @param hash bytes32 message, the hash is the signed message. What is recovered is the signer address.
-  * @param sig bytes signature, the signature is generated using web3.eth.sign()
-  */
-  function recover(bytes32 hash, bytes memory sig) internal pure returns (address) {
-    bytes32 r;
-    bytes32 s;
-    uint8 v;
-
-    //Check the signature length
-    if (sig.length != 65) {
-      return (address(0));
+"use strict";
+var __read = (this && this.__read) || function (o, n) {
+    var m = typeof Symbol === "function" && o[Symbol.iterator];
+    if (!m) return o;
+    var i = m.call(o), r, ar = [], e;
+    try {
+        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
     }
-
-    // Divide the signature in r, s and v variables
-    assembly {
-      r := mload(add(sig, 32))
-      s := mload(add(sig, 64))
-      v := byte(0, mload(add(sig, 96)))
+    catch (error) { e = { error: error }; }
+    finally {
+        try {
+            if (r && !r.done && (m = i["return"])) m.call(i);
+        }
+        finally { if (e) throw e.error; }
     }
-// Version of signature should be 27 or 28, but 0 and 1 are also possible versions
-    if (v < 27) {
-      v += 27;
+    return ar;
+};
+var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
     }
-
-    // If the version is correct return the signer address
-    if (v != 27 && v != 28) {
-      return (address(0));
-    } else {
-      return ecrecover(hash, v, r, s);
+    return to.concat(ar || Array.prototype.slice.call(from));
+};
+exports.__esModule = true;
+var path = require('path');
+var encodeType = require('signtypeddata-v5').TypedDataUtils.encodeType;
+var generateFile = function (types, methods, log) {
+    if (log === void 0) { log = false; }
+    return "pragma solidity ^0.8.13;\n// SPDX-License-Identifier: MIT\n".concat(log ? 'import "hardhat/console.log";' : '', "\n\n").concat(types, "\n\ncontract EIP712Decoder {\n\n  /**\n  * @dev Recover signer address from a message by using their signature\n  * @param hash bytes32 message, the hash is the signed message. What is recovered is the signer address.\n  * @param sig bytes signature, the signature is generated using web3.eth.sign()\n  */\n  function recover(bytes32 hash, bytes memory sig) internal pure returns (address) {\n    bytes32 r;\n    bytes32 s;\n    uint8 v;\n\n    //Check the signature length\n    if (sig.length != 65) {\n      return (address(0));\n    }\n\n    // Divide the signature in r, s and v variables\n    assembly {\n      r := mload(add(sig, 32))\n      s := mload(add(sig, 64))\n      v := byte(0, mload(add(sig, 96)))\n    }\n// Version of signature should be 27 or 28, but 0 and 1 are also possible versions\n    if (v < 27) {\n      v += 27;\n    }\n\n    // If the version is correct return the signer address\n    if (v != 27 && v != 28) {\n      return (address(0));\n    } else {\n      return ecrecover(hash, v, r, s);\n    }\n  }\n").concat(methods, "\n\n}\n\n");
+};
+var LOGGING_ENABLED = false;
+function generateCodeFrom(types) {
+    var results = [];
+    var packetHashGetters = [];
+    Object.keys(types.types).forEach(function (typeName) {
+        var fields = types.types[typeName];
+        var typeHash = "bytes32 constant ".concat(typeName.toUpperCase(), "_TYPEHASH = keccak256(\"").concat(encodeType(typeName, types.types), "\");\n");
+        var struct = "struct ".concat(typeName, " {\n").concat(fields.map(function (field) { return "  ".concat(field.type, " ").concat(field.name, ";\n"); }).join(''), "}\n");
+        generatePacketHashGetters(types, typeName, fields, packetHashGetters);
+        results.push({ struct: struct, typeHash: typeHash });
+    });
+    var uniqueGetters = __spreadArray([], __read(new Set(packetHashGetters)), false);
+    return { setup: results, packetHashGetters: __spreadArray([], __read(new Set(packetHashGetters)), false) };
+}
+function generatePacketHashGetters(types, typeName, fields, packetHashGetters) {
+    if (packetHashGetters === void 0) { packetHashGetters = []; }
+    if (typeName.includes('[]')) {
+        generateArrayPacketHashGetter(typeName, packetHashGetters);
     }
-  }
-${methods}
-
-}
-
-`
-
-
-let LOGGING_ENABLED = false;
-
-function generateCodeFrom (types) {
-  let results = [];
-
-  const packetHashGetters = [];
-  Object.keys(types.types).forEach((typeName) => {
-    const fields = types.types[typeName];
-    const typeHash = `bytes32 constant ${typeName.toUpperCase()}_TYPEHASH = keccak256("${encodeType(typeName, types.types)}");\n`;
-    const struct = `struct ${typeName} {\n${fields.map((field) => { return `  ${field.type} ${field.name};\n`}).join('')}}\n`
-    generatePacketHashGetters(types, typeName, fields, packetHashGetters);
-    results.push({ struct, typeHash });
-  });
-
-  const uniqueGetters = [...new Set(packetHashGetters)];
-
-  return { setup: results, packetHashGetters: [...new Set(packetHashGetters)] };
-}
-
-function generatePacketHashGetters (types, typeName, fields, packetHashGetters = []) {
-  if (typeName.includes('[]')) {
-    generateArrayPacketHashGetter(typeName, packetHashGetters);
-  } else {
-    packetHashGetters.push(`
-  function ${packetHashGetterName(typeName)} (${typeName} memory _input) public pure returns (bytes32) {
-    ${ LOGGING_ENABLED ? `console.log("${typeName} typehash: ");
-    console.logBytes32(${typeName.toUpperCase()}_TYPEHASH);` : ''}
-    bytes memory encoded = abi.encode(
-      ${ typeName.toUpperCase() }_TYPEHASH,
-      ${ fields.map(getEncodedValueFor).join(',\n      ') }
-    );
-    ${LOGGING_ENABLED ? `console.log("Encoded ${typeName}: ");
-    console.logBytes(encoded);` : ''}
-    return keccak256(encoded);
-  }`);
-  }
-
-  fields.forEach((field) => {
-    if (field.type.includes('[]')) {
-      generateArrayPacketHashGetter(field.type, packetHashGetters);
+    else {
+        packetHashGetters.push("\n  function ".concat(packetHashGetterName(typeName), " (").concat(typeName, " memory _input) public pure returns (bytes32) {\n    ").concat(LOGGING_ENABLED ? "console.log(\"".concat(typeName, " typehash: \");\n    console.logBytes32(").concat(typeName.toUpperCase(), "_TYPEHASH);") : '', "\n    bytes memory encoded = abi.encode(\n      ").concat(typeName.toUpperCase(), "_TYPEHASH,\n      ").concat(fields.map(getEncodedValueFor).join(',\n      '), "\n    );\n    ").concat(LOGGING_ENABLED ? "console.log(\"Encoded ".concat(typeName, ": \");\n    console.logBytes(encoded);") : '', "\n    return keccak256(encoded);\n  }"));
     }
-  });
-
-  return packetHashGetters;
+    fields.forEach(function (field) {
+        if (field.type.includes('[]')) {
+            generateArrayPacketHashGetter(field.type, packetHashGetters);
+        }
+    });
+    return packetHashGetters;
 }
-
-function getEncodedValueFor (field) {
-  const basicEncodableTypes = ['address', 'bool', 'bytes32', 'int', 'uint', 'uint256', 'string'];
-  const hashedTypes = ['bytes'];
-  if (basicEncodableTypes.includes(field.type)) {
-    return `_input.${field.name}`;
-  }
-
-  if (hashedTypes.includes(field.type)) {
-    return `keccak256(_input.${field.name})`;
-  }
-
-  return `${packetHashGetterName(field.type)}(_input.${field.name})`;
-}
-
-function packetHashGetterName (typeName) {
-  if (typeName.includes('[]')) {
-    return `GET_${typeName.substr(0, typeName.length - 2).toUpperCase()}_ARRAY_PACKETHASH`;
-  }
-  return `GET_${typeName.toUpperCase()}_PACKETHASH`;
-}
-
-function generateArrayPacketHashGetter (typeName, packetHashGetters) {
-  packetHashGetters.push(`
-  function ${packetHashGetterName(typeName)} (${typeName} memory _input) public pure returns (bytes32) {
-    bytes memory encoded;
-    for (uint i = 0; i < _input.length; i++) {
-      encoded = bytes.concat(
-        encoded,
-        ${packetHashGetterName(typeName.substr(0, typeName.length - 2))}(_input[i])
-      );
+function getEncodedValueFor(field) {
+    var basicEncodableTypes = ['address', 'bool', 'bytes32', 'int', 'uint', 'uint256', 'string'];
+    var hashedTypes = ['bytes'];
+    if (basicEncodableTypes.includes(field.type)) {
+        return "_input.".concat(field.name);
     }
-    ${LOGGING_ENABLED ? `console.log("Encoded ${typeName}: ");
-    console.logBytes(encoded);` : ''}
-    bytes32 hash = keccak256(encoded);
-    return hash;
-  }`);
+    if (hashedTypes.includes(field.type)) {
+        return "keccak256(_input.".concat(field.name, ")");
+    }
+    return "".concat(packetHashGetterName(field.type), "(_input.").concat(field.name, ")");
 }
-
-function generateSolidity (typeDef, shouldLog) {
-  LOGGING_ENABLED = shouldLog;
-  const { setup, packetHashGetters } = generateCodeFrom(typeDef);
-  const filePath = path.join(__dirname, '../contracts/EIP712Decoder.sol');
-  const types = [];
-  const methods = [];
-
-  let typeDefRange = false;
-  let contractBodyRange = false;
-  setup.forEach((type) => {
-    types.push(type.struct);
-    types.push(type.typeHash);
-  });
-
-  packetHashGetters.forEach((getterLine) => {
-    methods.push(getterLine);
-  });
-
-  const newFileString = generateFile(types.join('\n'), methods.join('\n'), shouldLog);
-  return newFileString;
+function packetHashGetterName(typeName) {
+    if (typeName.includes('[]')) {
+        return "GET_".concat(typeName.substr(0, typeName.length - 2).toUpperCase(), "_ARRAY_PACKETHASH");
+    }
+    return "GET_".concat(typeName.toUpperCase(), "_PACKETHASH");
 }
-
+function generateArrayPacketHashGetter(typeName, packetHashGetters) {
+    packetHashGetters.push("\n  function ".concat(packetHashGetterName(typeName), " (").concat(typeName, " memory _input) public pure returns (bytes32) {\n    bytes memory encoded;\n    for (uint i = 0; i < _input.length; i++) {\n      encoded = bytes.concat(\n        encoded,\n        ").concat(packetHashGetterName(typeName.substr(0, typeName.length - 2)), "(_input[i])\n      );\n    }\n    ").concat(LOGGING_ENABLED ? "console.log(\"Encoded ".concat(typeName, ": \");\n    console.logBytes(encoded);") : '', "\n    bytes32 hash = keccak256(encoded);\n    return hash;\n  }"));
+}
+function generateSolidity(typeDef, shouldLog) {
+    LOGGING_ENABLED = shouldLog;
+    var _a = generateCodeFrom(typeDef), setup = _a.setup, packetHashGetters = _a.packetHashGetters;
+    var types = [];
+    var methods = [];
+    setup.forEach(function (type) {
+        types.push(type.struct);
+        types.push(type.typeHash);
+    });
+    packetHashGetters.forEach(function (getterLine) {
+        methods.push(getterLine);
+    });
+    var newFileString = generateFile(types.join('\n'), methods.join('\n'), shouldLog);
+    return newFileString;
+}
 module.exports = {
-  generateCodeFrom,
-  generateSolidity,
-}
-
+    generateCodeFrom: generateCodeFrom,
+    generateSolidity: generateSolidity
+};

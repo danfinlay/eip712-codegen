@@ -1,13 +1,15 @@
 {
   "name": "eip712-codegen",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "A utility for generating Solidity code for recovering signatures using the EIP-712 signTypedData schema.",
   "main": "index.js",
   "bin": {
     "712gen": "./cli.js"
   },
+  "types": "./index.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "npx tsc index.ts --downlevelIteration --declaration"
   },
   "repository": {
     "type": "git",
@@ -30,5 +32,8 @@
   "homepage": "https://github.com/danfinlay/eip712-codegen#readme",
   "dependencies": {
     "commander": "^9.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^4.6.3"
   }
 }

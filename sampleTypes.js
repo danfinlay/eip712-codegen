@@ -5,12 +5,6 @@ const typedMessage = {
     version: '1',
   },
 
-  entries: {
-    delegate: "address",
-    caveat: "Caveat",
-    authority: "SignedDelegation",
-  },
-
   types: {
     EIP712Domain: [
       { name: 'name', type: 'string' },

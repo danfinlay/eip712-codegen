@@ -10,6 +10,14 @@ Well, no more. This module will generate basically all the solidity you need to 
 
 Add this module to your project: `npm i 712-codegen -D` or `yarn add 712-codegen -D`.
 
+As a module:
+```
+const codeGen = require('eip712-codegen');
+const yourTypes = { primaryMessage, domain, entries, types };
+const solidityFile = codGen(yourTypes);
+```
+As a module, we are exporting typescript definition files, which can help you get your types right in case [the example type file](./sampleTypes.js) isn't enough.
+
 This module is very simple, it's a CLI tool, and you point it at a typeDef file (defined as a CommonJS module, [as seen in sampleTypes.js](./sampleTypes.js)), and it then prints out some solidity to the console. You can then pipe it into a file.
 
 Examples:
