@@ -4,13 +4,13 @@
 
 [The documentation](https://docs.metamask.io/guide/signing-data.html#sign-typed-data-v4) has not always been the greatest, and in particular I think this method has failed to catch on because writing the verification code is a huge pain.
 
-Well, no more. This module will generate basically all the solidity you need to let users basicallys ign structs and then mostly just think about the structs you have signed in your code. This should really level up your ability to keep more user actions off-chain and gas-free.
+Well, no more. This module will generate basically all the solidity you need to let users basically sign structs and then mostly just think about the structs you have signed in your code. This should really level up your ability to keep more user actions off-chain and gas-free.
 
 ## Usage
 
 Add this module to your project: `npm i 712-codegen -D` or `yarn add 712-codegen -D`.
 
-As a module:
+### As a module:
 ```
 const codeGen = require('eip712-codegen');
 const yourTypes = { primaryMessage, domain, entries, types };
@@ -18,7 +18,9 @@ const solidityFile = codGen(yourTypes);
 ```
 As a module, we are exporting typescript definition files, which can help you get your types right in case [the example type file](./sampleTypes.js) isn't enough.
 
-This module is very simple, it's a CLI tool, and you point it at a typeDef file (defined as a CommonJS module, [as seen in sampleTypes.js](./sampleTypes.js)), and it then prints out some solidity to the console. You can then pipe it into a file.
+### As a CLI tool:
+
+You point it at a typeDef file (defined as a CommonJS module, [as seen in sampleTypes.js](./sampleTypes.js)), and it then prints out some solidity to the console. You can then pipe it into a file.
 
 Examples:
 
@@ -32,14 +34,14 @@ If you're using [hardhat](hardhat.org/) and their [console.log](https://hardhat.
 712gen ./sampleTypes.js log >> YourTypesFile.sol
 ```
 
-You'll then need to import this typefile into your contract, and inherit from it.
+You'll then need to import this typefile into your contract, and inherit from `EIP712Decoder`.
 
 ```
 
 pragma solidity ^0.8.13;
 // SPDX-License-Identifier: MIT
 
-import "./TypesAndDecoders.sol";
+import "./YourTypesFile.sol";
 import "./caveat-enforcers/CaveatEnforcer.sol";
 
 abstract contract Delegatable is EIP712Decoder {
