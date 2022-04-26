@@ -1,6 +1,11 @@
+#!/usr/bin/env node
+
 const typesToCode = require('./index');
-const types = require('./sampleTypes');
+const path = require('path');
 
+const targetPath = path.join(__dirname, process.argv[2]);
+const types = require(targetPath);
+const shouldLog = process.argv[3] === 'log';
 
-typesToCode.updateSolidity(types);
+console.log(typesToCode.generateSolidity(types, shouldLog));
 

@@ -9,8 +9,9 @@ const {
   encodeType,
 } = require('signtypeddata-v5').TypedDataUtils;
 
-const generateFile = (types, methods) => `pragma solidity ^0.8.13;
+const generateFile = (types, methods, log = false) => `pragma solidity ^0.8.13;
 // SPDX-License-Identifier: MIT
+${log ? 'import "hardhat/console.log";' : ''}
 
 ${types}
 
@@ -56,7 +57,7 @@ ${methods}
 `
 
 
-const LOGGING_ENABLED = false;
+let LOGGING_ENABLED = false;
 
 function generateCodeFrom (types) {
   let results = [];
@@ -70,9 +71,7 @@ function generateCodeFrom (types) {
     results.push({ struct, typeHash });
   });
 
-  console.log(`have generated ${packetHashGetters.length} packet hash getters`);
   const uniqueGetters = [...new Set(packetHashGetters)];
-  console.log(`or uniquely, just ${uniqueGetters.length}`, uniqueGetters);
 
   return { setup: results, packetHashGetters: [...new Set(packetHashGetters)] };
 }
@@ -126,7 +125,6 @@ function packetHashGetterName (typeName) {
 }
 
 function generateArrayPacketHashGetter (typeName, packetHashGetters) {
-  console.log(`Generating array packet hash getter for ${typeName}`);
   packetHashGetters.push(`
   function ${packetHashGetterName(typeName)} (${typeName} memory _input) public pure returns (bytes32) {
     bytes memory encoded;
@@ -143,7 +141,8 @@ function generateArrayPacketHashGetter (typeName, packetHashGetters) {
   }`);
 }
 
-function updateSolidity (typeDef) {
+function generateSolidity (typeDef, shouldLog) {
+  LOGGING_ENABLED = shouldLog;
   const { setup, packetHashGetters } = generateCodeFrom(typeDef);
   const filePath = path.join(__dirname, '../contracts/EIP712Decoder.sol');
   const types = [];
@@ -160,12 +159,12 @@ function updateSolidity (typeDef) {
     methods.push(getterLine);
   });
 
-  const newFileString = generateFile(types.join('\n'), methods.join('\n'));
-  console.log(newFileString);
+  const newFileString = generateFile(types.join('\n'), methods.join('\n'), shouldLog);
+  return newFileString;
 }
 
 module.exports = {
   generateCodeFrom,
-  updateSolidity,
+  generateSolidity,
 }
 
