@@ -8,7 +8,7 @@ Well, no more. This module will generate basically all the solidity you need to 
 
 ## Usage
 
-Add this module to your project: `npm i 712-codegen -D` or `yarn add 712-codegen -D`.
+Add this module to your project: `npm i eip712-codegen -D` or `yarn add eip712-codegen -D`.
 
 ### As a module:
 ```
