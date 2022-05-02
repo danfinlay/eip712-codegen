@@ -8,10 +8,10 @@ Well, no more. This module will generate basically all the solidity you need to 
 
 ## Usage
 
-Add this module to your project: `npm i 712-codegen -D` or `yarn add 712-codegen -D`.
+Add this module to your project: `npm i eip712-codegen -D` or `yarn add eip712-codegen -D`.
 
 ### As a module:
-```
+```js
 const codeGen = require('eip712-codegen');
 const yourTypes = { primaryMessage, domain, entries, types };
 const solidityFile = codGen(yourTypes);
@@ -24,19 +24,19 @@ You point it at a typeDef file (defined as a CommonJS module, [as seen in sample
 
 Examples:
 
-```
-npx ei-712gen ./sampleTypes.js >> YourTypesFile.sol
+```sh
+npx eip-712gen ./sampleTypes.js >> YourTypesFile.sol
 ```
 
 If you're using [hardhat](hardhat.org/) and their [console.log](https://hardhat.org/hardhat-network/#console-log) feature, you can generate a logged version by adding `log`:
 
-```
+```sh
 npx eip-712gen ./sampleTypes.js log >> YourTypesFile.sol
 ```
 
 You'll then need to import this typefile into your contract, and inherit from `EIP712Decoder`.
 
-```
+```solidity
 
 pragma solidity ^0.8.13;
 // SPDX-License-Identifier: MIT
@@ -49,7 +49,7 @@ abstract contract Delegatable is EIP712Decoder {
 
 You'll also need to include this one method that defines your DomainHash, which I'm leaving to you because it's pretty straightforward, you can copy paste this and change it:
 
-```
+```solidity
   bytes32 public immutable domainHash;
   constructor (string memory contractName, string memory version) {
     domainHash = getEIP712DomainHash(contractName,version,block.chainid,address(this));
@@ -70,7 +70,7 @@ You'll also need to include this one method that defines your DomainHash, which 
 
 There's one more thing you have to do, this part will require the most thinking. You'll have to write the method that verifies the top-level signatures. I have not written codegen for this yet, because I don't know which types you want to use as your entry points, and there are some design decisions that are up to you here, but here is a sample method for verifying a `SignedDelegation` as defined in our [sampleTypes.js](./sampleTypes) file:
 
-```
+```solidity
   function verifyDelegationSignature (SignedDelegation memory signedDelegation) public view returns (address) {
 
     // Break out the struct that was signed:
