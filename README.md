@@ -25,13 +25,13 @@ You point it at a typeDef file (defined as a CommonJS module, [as seen in sample
 Examples:
 
 ```sh
-npx eip712-codegen ./sampleTypes.js >> YourTypesFile.sol
+npx eip712-codegen ./sampleTypes.js > YourTypesFile.sol
 ```
 
 If you're using [hardhat](hardhat.org/) and their [console.log](https://hardhat.org/hardhat-network/#console-log) feature, you can generate a logged version by adding `log`:
 
 ```sh
-npx eip712-codegen ./sampleTypes.js log >> YourTypesFile.sol
+npx eip712-codegen ./sampleTypes.js log > YourTypesFile.sol
 ```
 
 You'll then need to import this typefile into your contract, and inherit from `EIP712Decoder`.
