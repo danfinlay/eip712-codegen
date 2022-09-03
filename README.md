@@ -68,7 +68,7 @@ You'll also need to include this one method that defines your DomainHash, which 
 }
 ```
 
-There's one more thing you have to do, this part will require the most thinking. You'll have to write the method that verifies the top-level signatures. I have not written codegen for this yet, because I don't know which types you want to use as your entry points, and there are some design decisions that are up to you here, but here is a sample method for verifying a `SignedDelegation` as defined in our [sampleTypes.js](./sampleTypes) file:
+There's one more thing you have to do, this part will require the most thinking. You'll have to write the method that verifies the top-level signatures. I have not written codegen for this yet, because I don't know which types you want to use as your entry points, and there are some design decisions that are up to you here (in particular, *your entrypoint types are your user-facing security enforcement*, but here is a sample method for verifying a `SignedDelegation` as defined in our [sampleTypes.js](./sampleTypes) file:
 
 ```solidity
   function verifyDelegationSignature (SignedDelegation memory signedDelegation) public view returns (address) {
