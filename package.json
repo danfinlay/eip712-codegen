@@ -31,7 +31,8 @@
   },
   "homepage": "https://github.com/danfinlay/eip712-codegen#readme",
   "dependencies": {
-    "commander": "^9.2.0"
+    "commander": "^9.2.0",
+    "signtypeddata-v5": "^5.0.1"
   },
   "devDependencies": {
     "typescript": "^4.6.3"
