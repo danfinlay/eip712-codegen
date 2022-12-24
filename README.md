@@ -14,7 +14,7 @@ Add this module to your project: `npm i eip712-codegen -D` or `yarn add eip712-c
 ```js
 const codeGen = require('eip712-codegen');
 const yourTypes = { primaryMessage, domain, entries, types };
-const solidityFile = codGen(yourTypes);
+const solidityFile = codeGen(yourTypes);
 ```
 As a module, we are exporting typescript definition files, which can help you get your types right in case [the example type file](./sampleTypes.js) isn't enough.
 
