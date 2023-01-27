@@ -21,6 +21,8 @@ export interface MessageTypes {
  * @property domain.chainId - The chain ID of the signing domain.
  * @property domain.verifyingContract - The address of the contract that can verify the signature.
  * @property domain.salt - A disambiguating salt for the protocol.
+ * @property domain.extensions - An extension data field. For example when used in ERC-5267
+ *                               it refers to a list of EIP numbers.
  * @property message - The message to be signed.
  */
 export interface TypedMessage<T extends MessageTypes> {
@@ -32,6 +34,7 @@ export interface TypedMessage<T extends MessageTypes> {
         chainId?: number;
         verifyingContract?: string;
         salt?: ArrayBuffer;
+        extensions?: ArrayBuffer;
     };
     message: Record<string, unknown>;
 }
