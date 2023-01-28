@@ -61,7 +61,7 @@ contract EIP712Decoder {
     bytes32 s;
     uint8 v;
 
-    //Check the signature length
+    // Check the signature length
     if (sig.length != 65) {
       return (address(0));
     }
@@ -72,7 +72,7 @@ contract EIP712Decoder {
       s := mload(add(sig, 64))
       v := byte(0, mload(add(sig, 96)))
     }
-// Version of signature should be 27 or 28, but 0 and 1 are also possible versions
+    // Version of signature should be 27 or 28, but 0 and 1 are also possible versions
     if (v < 27) {
       v += 27;
     }
