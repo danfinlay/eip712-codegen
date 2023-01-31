@@ -13,6 +13,28 @@ export interface MessageTypes {
   [additionalProperties: string]: MessageTypeProperty[];
 }
 
+// these types, basically solidity native types will not be passed through further function for encoding
+// they will be encoded straight away
+const basicEncodableTypes = [
+  'address',
+  'bool',
+  'string',
+  'int',
+  'uint',
+  'int8',
+  'uint8',
+  'int16',
+  'uint16',
+  'int256',
+  'uint256',
+  'bytes32',
+  'bytes16',
+  'bytes8',
+  'bytes4',
+  'bytes2',
+  'bytes1',
+];
+
 /**
  * This is the message format used for `signTypeData`, for all versions
  * except `V1`.
@@ -137,7 +159,6 @@ function generatePacketHashGetters (types, typeName, fields, packetHashGetters =
 }
 
 function getEncodedValueFor (field) {
-  const basicEncodableTypes = ['address', 'bool', 'bytes32', 'int', 'uint', 'uint256', 'string'];
   const hashedTypes = ['bytes'];
   if (basicEncodableTypes.includes(field.type)) {
     return `_input.${field.name}`;
