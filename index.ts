@@ -91,11 +91,15 @@ ${methods}
 `
 
 let LOGGING_ENABLED = false;
+type Result = {
+  struct: string;
+  typeHash: string;
+}
 
 function generateCodeFrom (types) {
-  let results = [];
+  let results: Result[] = [];
 
-  const packetHashGetters = [];
+  const packetHashGetters: Array<string> = [];
   Object.keys(types.types).forEach((typeName) => {
     const fields = types.types[typeName];
     const typeHash = `bytes32 constant ${typeName.toUpperCase()}_TYPEHASH = keccak256("${encodeType(typeName, types.types)}");\n`;
@@ -104,12 +108,10 @@ function generateCodeFrom (types) {
     results.push({ struct, typeHash });
   });
 
-  const uniqueGetters = [...new Set(packetHashGetters)];
-
   return { setup: results, packetHashGetters: [...new Set(packetHashGetters)] };
 }
 
-function generatePacketHashGetters (types, typeName, fields, packetHashGetters = []) {
+function generatePacketHashGetters (types, typeName, fields, packetHashGetters: Array<string> = []) {
   if (typeName.includes('[]')) {
     generateArrayPacketHashGetter(typeName, packetHashGetters);
   } else {
@@ -179,8 +181,8 @@ function generateSolidity <
 > (typeDef: TypedMessage<T>, shouldLog) {
   LOGGING_ENABLED = shouldLog;
   const { setup, packetHashGetters } = generateCodeFrom(typeDef);
-  const types = [];
-  const methods = [];
+  const types: string[] = [];
+  const methods: string[] = [];
 
   setup.forEach((type) => {
     types.push(type.struct);
