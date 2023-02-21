@@ -22,16 +22,20 @@ As a module, we are exporting typescript definition files, which can help you ge
 
 You point it at a typeDef file (defined as a CommonJS module, [as seen in sampleTypes.js](./sampleTypes.js)), and it then prints out some solidity to the console. You can then pipe it into a file.
 
-Examples:
-
+input:
 ```sh
-npx eip712-codegen ./sampleTypes.js > YourTypesFile.sol
+npx eip712-codegen --input <input-file-path> --entryPoints <entry-point-1> <entry-point-2> ... --log
 ```
 
-If you're using [hardhat](hardhat.org/) and their [console.log](https://hardhat.org/hardhat-network/#console-log) feature, you can generate a logged version by adding `log`:
+Example:
+```sh
+npx eip712-codegen --input sampleTypes.js --entryPoints Type1 Type2 > YourTypesFile.sol
+```
+
+If you're using [hardhat](hardhat.org/) and their [console.log](https://hardhat.org/hardhat-network/#console-log) feature, you can generate a logged version by adding `--log`:
 
 ```sh
-npx eip712-codegen ./sampleTypes.js log > YourTypesFile.sol
+npx eip712-codegen --input sampleTypes.js --entryPoints Type1 Type2 --log > YourTypesFile.sol
 ```
 
 You'll then need to import this typefile into your contract, and inherit from `EIP712Decoder`.
@@ -67,6 +71,8 @@ You'll also need to include this one method that defines your DomainHash, which 
   }
 }
 ```
+
+IN PROGRESS: This section should be outdated soon. The `--entryPoints` flag is intended to replace this instruction, and once implemented will require simply calling signature verifying methods by name instead of doing any of this:
 
 There's one more thing you have to do, this part will require the most thinking. You'll have to write the method that verifies the top-level signatures. I have not written codegen for this yet, because I don't know which types you want to use as your entry points, and there are some design decisions that are up to you here (in particular, *your entrypoint types are your user-facing security enforcement*, but here is a sample method for verifying a `SignedDelegation` as defined in our [sampleTypes.js](./sampleTypes) file:
 

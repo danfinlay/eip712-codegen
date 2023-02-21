@@ -178,7 +178,7 @@ function generateArrayPacketHashGetter (typeName, packetHashGetters) {
 
 function generateSolidity <
   T extends MessageTypes,
-> (typeDef: TypedMessage<T>, shouldLog) {
+> (typeDef: TypedMessage<T>, shouldLog, entryTypes: string[]) {
   LOGGING_ENABLED = shouldLog;
   const { setup, packetHashGetters } = generateCodeFrom(typeDef);
   const types: string[] = [];
