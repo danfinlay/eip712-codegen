@@ -49,6 +49,28 @@ ${log ? 'import "hardhat/console.log";' : ''}
 
 ${types}
 
+contract ERC1271Contract {
+
+  // bytes4(keccak256("isValidSignature(bytes32,bytes)")
+  bytes4 constant internal MAGICVALUE = 0x1626ba7e;
+
+  /**
+   * @dev Should return whether the signature provided is valid for the provided hash
+   * @param _hash      Hash of the data to be signed
+   * @param _signature Signature byte array associated with _hash
+   *
+   * MUST return the bytes4 magic value 0x1626ba7e when function passes.
+   * MUST NOT modify state (using STATICCALL for solc < 0.5, view modifier for solc > 0.5)
+   * MUST allow external calls
+   */ 
+  function isValidSignature(
+    bytes32 _hash, 
+    bytes memory _signature)
+    public
+    view 
+    returns (bytes4 magicValue);
+}
+
 contract EIP712Decoder {
 
   /**
@@ -217,11 +239,28 @@ function generateSolidity <
 
 function generateEntrypointMethods(entryTypes) {
   return entryTypes.map((entryType) => `
-    function verifySigned${entryType}(signed${entryType} memory _input) public pure returns (bool) {
+    function verifySigned${entryType}(signed${entryType} memory _input) public view returns (address) {
       bytes32 packetHash = ${packetHashGetterName(entryType)}(_input.message);
-      bytes32 ethSignedMessageHash = getEthSignedMessageHash(packetHash);
-      address recoveredSigner = recover(ethSignedMessageHash, _input.signature);
-      return recoveredSigner == _input.signer;
+      bytes32 digest = keccak256(
+        abi.encodePacked(
+          "\\x19\\x01",
+          domainHash,
+          packetHash
+        )
+      );
+
+      if (_input.signer == 0x0000000000000000000000000000000000000000) {
+        address recoveredSigner = recover(
+          digest,
+          _input.signature
+        );
+        return recoveredSigner;
+      } else {
+        // EIP-1271 signature verification
+        bytes4 result = ERC1271Contract(_input.signer).isValidSignature(digest, _input.signature);
+        require(result == 0x1626ba7e, "INVALID_SIGNATURE");
+        return _input.signer;
+      }
     }
   `).join('\n');
 }
