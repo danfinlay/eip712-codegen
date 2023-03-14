@@ -96,14 +96,27 @@ type Result = {
   typeHash: string;
 }
 
-function generateCodeFrom (types) {
+function generateCodeFrom(types, entryTypes) {
   let results: Result[] = [];
 
   const packetHashGetters: Array<string> = [];
   Object.keys(types.types).forEach((typeName) => {
     const fields = types.types[typeName];
     const typeHash = `bytes32 constant ${typeName.toUpperCase()}_TYPEHASH = keccak256("${encodeType(typeName, types.types)}");\n`;
-    const struct = `struct ${typeName} {\n${fields.map((field) => { return `  ${field.type} ${field.name};\n`}).join('')}}\n`
+    const struct = `struct ${typeName} {\n${fields.map((field) => { return `  ${field.type} ${field.name};\n`}).join('')}}\n`;
+
+    // Generate signed${TYPE} struct for entryTypes
+    if (entryTypes.includes(typeName)) {
+      const signedStruct = `
+struct signed${typeName} {
+  bytes signature;
+  address signer;
+  ${typeName} message;
+}
+`;
+      results.push({ struct: signedStruct, typeHash: '' });
+    }
+
     generatePacketHashGetters(types, typeName, fields, packetHashGetters);
     results.push({ struct, typeHash });
   });
@@ -180,7 +193,8 @@ function generateSolidity <
   T extends MessageTypes,
 > (typeDef: TypedMessage<T>, shouldLog, entryTypes: string[]) {
   LOGGING_ENABLED = shouldLog;
-  const { setup, packetHashGetters } = generateCodeFrom(typeDef);
+  const { setup, packetHashGetters } = generateCodeFrom(typeDef, entryTypes);
+
   const types: string[] = [];
   const methods: string[] = [];
 
@@ -193,8 +207,23 @@ function generateSolidity <
     methods.push(getterLine);
   });
 
+  // Generate entrypoint methods
+  const entrypointMethods = generateEntrypointMethods(entryTypes);
+  methods.push(entrypointMethods);
+
   const newFileString = generateFile(types.join('\n'), methods.join('\n'), shouldLog);
   return newFileString;
+}
+
+function generateEntrypointMethods(entryTypes) {
+  return entryTypes.map((entryType) => `
+    function verifySigned${entryType}(signed${entryType} memory _input) public pure returns (bool) {
+      bytes32 packetHash = ${packetHashGetterName(entryType)}(_input.message);
+      bytes32 ethSignedMessageHash = getEthSignedMessageHash(packetHash);
+      address recoveredSigner = recover(ethSignedMessageHash, _input.signature);
+      return recoveredSigner == _input.signer;
+    }
+  `).join('\n');
 }
 
 module.exports = {
