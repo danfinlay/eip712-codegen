@@ -1,8 +1,9 @@
 const { expect } = require('chai');
 const ganache = require('ganache-cli');
-const { ethers } = require('ethers');
-const { deploy } = require('@openzeppelin/test-environment');
-const { setupLoader } = require('@openzeppelin/contract-loader');
+const ethers = require('ethers');
+const testEnv = require('@openzeppelin/test-environment');
+const testContract = testEnv.contract;
+const { deploy } = testEnv;
 
 // Import the generateSolidity function from the module
 const { generateSolidity } = require('./index.js');
@@ -53,8 +54,7 @@ describe('EIP712Decoder', function () {
     signer = provider.getSigner(accounts[0]);
 
     // Compile and deploy the contract
-    const loader = setupLoader({ provider, signer }).solidity;
-    const EIP712Decoder = loader.fromArtifact('EIP712Decoder', 'EIP712Decoder.sol');
+    const EIP712Decoder = testContract.fromArtifact('EIP712Decoder', './EIP712Decoder.sol'); // <-- Update this line
     contract = await deploy(EIP712Decoder, []);
 
     // Create the typed data for testing
