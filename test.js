@@ -139,6 +139,60 @@ describe('EIP712Decoder', function () {
   });
 });
 
+describe('EIP-1271', () => {
+  let contract, eip1271, owner, other, accounts, signer, typedData, eip712Decoder, privateKey, wallet;
+
+  beforeEach(async () => {
+    // Compile the contract using Hardhat
+    await hre.run('compile');
+
+    // Set up a ganache provider with the generated Solidity code
+    const ganacheProvider = ganache.provider({})
+    const provider = new ethers.providers.Web3Provider(ganacheProvider);
+    const mnemonic = ganacheProvider.options.mnemonic;
+    wallet = ethers.Wallet.fromMnemonic(mnemonic);
+    privateKey = wallet.privateKey;
+    accounts = await provider.listAccounts();
+    signer = provider.getSigner(accounts[0]);
+
+    // Load up the compiled contract artifact
+    const EIP712Decoder = await hre.artifacts.readArtifact('MockEIP712Decoder');
+
+    // Deploy the contract
+    const EIP712DecoderFactory = new ethers.ContractFactory(EIP712Decoder.abi, EIP712Decoder.bytecode, signer);
+    contract = await EIP712DecoderFactory.deploy([1]);
+    message.domain.verifyingContract = contract.address;
+    await contract.deployed();
+
+    // Create the typed data for testing
+    typedData = JSON.parse(JSON.stringify(message));
+    typedData.domain.verifyingContract = contract.address;
+
+    // Deploy the EIP-1271 contract
+    const EIP1271 = await hre.artifacts.readArtifact('EIP1271');
+    const EIP1271ContractFactory = new ethers.ContractFactory(EIP1271.abi, EIP1271.bytecode, signer);
+    const EIP1271Contract = await EIP1271ContractFactory.deploy([]);
+    eip1271 = await EIP1271Contract.deployed();
+    await eip1271.deployed();
+
+    await eip1271.addOwner(wallet.address);
+  });
+
+  describe('contract account signature recovery', () => {
+    it('should recover the correct signer', async () => {
+      // Sign the typed data using eth-sig-util
+      const signedPerson = signStruct(privateKey);
+      signedPerson.signer = eip1271.address;
+
+      // Call the verifySigned method with the EIP-1271 contract address as the signer
+      const result = await contract.verifySignedPerson(signedPerson);
+
+      // Verify that the returned address is equal to the EIP-1271 contract address
+      expect(result).to.equal(eip1271.address);
+    });
+  });
+});
+
 function signStruct (privateKey) {
   const signature = sigUtil.signTypedData({
     privateKey: fromHexString(privateKey.indexOf('0x') === 0 ? privateKey.substring(2) : privateKey),
