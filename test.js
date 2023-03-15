@@ -30,7 +30,7 @@ const message = {
   types: MessageTypes,
   primaryType: 'Person',
   domain: {
-    name: 'Test Domain',
+    name: 'MockEIP712Decoder',
     version: '1',
     chainId: 1,
   },
@@ -50,7 +50,7 @@ fs.writeFileSync('./contracts/EIP712Decoder.sol', solidityCode);
 
 // Run the tests
 describe('EIP712Decoder', function () {
-  let contract, accounts, signer, typedData, eip712Decoder, privateKey;
+  let contract, accounts, signer, typedData, eip712Decoder, privateKey, wallet;
 
   before(async function () {
     // Compile the contract using Hardhat
@@ -60,7 +60,7 @@ describe('EIP712Decoder', function () {
     const ganacheProvider = ganache.provider({})
     const provider = new ethers.providers.Web3Provider(ganacheProvider);
     const mnemonic = ganacheProvider.options.mnemonic;
-    const wallet = ethers.Wallet.fromMnemonic(mnemonic);
+    wallet = ethers.Wallet.fromMnemonic(mnemonic);
     privateKey = wallet.privateKey;
     accounts = await provider.listAccounts();
     signer = provider.getSigner(accounts[0]);
@@ -85,7 +85,7 @@ describe('EIP712Decoder', function () {
     const isValid = await contract.verifySignedPerson(signedStruct);
 
     // Check if the signer is valid
-    expect(isValid).to.equal(accounts[0]);
+    expect(isValid).to.equal(wallet.address);
   });
 });
 

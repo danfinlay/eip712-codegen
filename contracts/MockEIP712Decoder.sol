@@ -10,7 +10,7 @@ contract MockEIP712Decoder is EIP712Decoder {
             EIP712DOMAIN_TYPEHASH,
             keccak256(bytes("MockEIP712Decoder")),
             keccak256(bytes("1")),
-            uint256(chainId),
+            chainId,
             address(this)
         ));
     }
