@@ -42,6 +42,7 @@
     "@openzeppelin/test-environment": "^0.1.9",
     "@openzeppelin/test-helpers": "^0.5.16",
     "chai": "^4.3.7",
+    "eth-sig-util": "^3.0.1",
     "ethers": "^5.7.2",
     "ganache-cli": "^6.12.2",
     "hardhat": "^2.13.0",

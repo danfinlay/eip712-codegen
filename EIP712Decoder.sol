@@ -26,7 +26,7 @@ struct Person {
 bytes32 constant PERSON_TYPEHASH = keccak256("Person(string name,uint256 age)");
 
 
-abstract contract ERC1271Contract {
+contract ERC1271Contract {
 
   // bytes4(keccak256("isValidSignature(bytes32,bytes)")
   bytes4 constant internal MAGICVALUE = 0x1626ba7e;
@@ -45,12 +45,10 @@ abstract contract ERC1271Contract {
     bytes memory _signature)
     public
     view 
-    virtual
     returns (bytes4 magicValue);
 }
 
-abstract contract EIP712Decoder {
-  function getDomainHash () public view virtual returns (bytes32);
+contract EIP712Decoder {
 
   /**
   * @dev Recover signer address from a message by using their signature

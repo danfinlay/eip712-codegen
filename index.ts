@@ -49,7 +49,7 @@ ${log ? 'import "hardhat/console.log";' : ''}
 
 ${types}
 
-contract ERC1271Contract {
+abstract contract ERC1271Contract {
 
   // bytes4(keccak256("isValidSignature(bytes32,bytes)")
   bytes4 constant internal MAGICVALUE = 0x1626ba7e;
@@ -68,10 +68,12 @@ contract ERC1271Contract {
     bytes memory _signature)
     public
     view 
+    virtual
     returns (bytes4 magicValue);
 }
 
-contract EIP712Decoder {
+abstract contract EIP712Decoder {
+  function getDomainHash () public view virtual returns (bytes32);
 
   /**
   * @dev Recover signer address from a message by using their signature
@@ -244,7 +246,7 @@ function generateEntrypointMethods(entryTypes) {
       bytes32 digest = keccak256(
         abi.encodePacked(
           "\\x19\\x01",
-          domainHash,
+          getDomainHash(),
           packetHash
         )
       );
