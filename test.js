@@ -19,6 +19,7 @@ const MessageTypes = {
     { name: 'name', type: 'string' },
     { name: 'version', type: 'string' },
     { name: 'chainId', type: 'uint256' },
+    { name: 'verifyingContract', type: 'address' },
   ],
   Person: [
     { name: 'name', type: 'string' },
@@ -71,11 +72,60 @@ describe('EIP712Decoder', function () {
     // Deploy the contract
     const EIP712DecoderFactory = new ethers.ContractFactory(EIP712Decoder.abi, EIP712Decoder.bytecode, signer);
     contract = await EIP712DecoderFactory.deploy([1]);
+    message.domain.verifyingContract = contract.address;
     await contract.deployed();
 
     // Create the typed data for testing
     typedData = JSON.parse(JSON.stringify(message));
     typedData.domain.verifyingContract = contract.address;
+  });
+
+  it('should generate the correct domain hash', async function () {
+    // Call the getDomainHash function
+    const domainHash = await contract.getDomainHash();
+
+    // Check if the domain hash is correct
+    expect(domainHash).to.equal('0x' + TypedDataUtils.eip712DomainHash(typedData, 'V4').toString('hex'));
+  });
+
+  it('should generate the correct person type hash', async function () {
+    const solidityPersonPackethash = await contract.PERSON_TYPEHASH();
+    const personTypestring = TypedDataUtils.encodeType('Person', typedData.types).toString('hex');
+    const jsPersonPackethash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(personTypestring));
+    expect(solidityPersonPackethash).to.equal(jsPersonPackethash);
+  });
+
+  it('should generate the correct person packet', async function () {
+    const person = {
+      name: 'Alice',
+      age: 30,
+    };
+
+    const encoded = TypedDataUtils.encodeData(
+      'Person',
+      person,
+      typedData.types,
+      'V4'
+    );
+    const solEncoded = await contract.GET_PERSON_PACKET(person);
+    expect(solEncoded).to.equal('0x' + encoded.toString('hex'));
+  });
+
+  it('should generate the correct person packet hash', async function () {
+    const person = {
+      name: 'Alice',
+      age: 30,
+    };
+
+    const domainHash = await contract.GET_PERSON_PACKETHASH(person);
+
+    // Check if the domain hash is correct
+    expect(domainHash).to.equal('0x' + TypedDataUtils.hashStruct(
+      'Person',
+      person,
+      typedData.types,
+      'V4'
+     ).toString('hex'));
   });
 
   it('should recover the correct signer', async function () {
@@ -90,7 +140,6 @@ describe('EIP712Decoder', function () {
 });
 
 function signStruct (privateKey) {
-  console.dir(privateKey);
   const signature = sigUtil.signTypedData({
     privateKey: fromHexString(privateKey.indexOf('0x') === 0 ? privateKey.substring(2) : privateKey),
     data: message,
@@ -108,7 +157,6 @@ function signStruct (privateKey) {
 
 function fromHexString (_hexString) {
   const hexString = _hexString.toLowerCase();
-  console.dir(hexString)
   if (!hexString || typeof hexString !== 'string') {
     throw new Error('Expected a hex string.');
   }

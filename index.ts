@@ -47,13 +47,7 @@ const generateFile = (types, methods, log = false) => `pragma solidity ^0.8.13;
 // SPDX-License-Identifier: MIT
 ${log ? 'import "hardhat/console.log";' : ''}
 
-${types}
-
 abstract contract ERC1271Contract {
-
-  // bytes4(keccak256("isValidSignature(bytes32,bytes)")
-  bytes4 constant internal MAGICVALUE = 0x1626ba7e;
-
   /**
    * @dev Should return whether the signature provided is valid for the provided hash
    * @param _hash      Hash of the data to be signed
@@ -74,6 +68,8 @@ abstract contract ERC1271Contract {
 
 abstract contract EIP712Decoder {
   function getDomainHash () public view virtual returns (bytes32);
+
+${types}
 
   /**
   * @dev Recover signer address from a message by using their signature
@@ -126,13 +122,13 @@ function generateCodeFrom(types, entryTypes) {
   const packetHashGetters: Array<string> = [];
   Object.keys(types.types).forEach((typeName) => {
     const fields = types.types[typeName];
-    const typeHash = `bytes32 constant ${typeName.toUpperCase()}_TYPEHASH = keccak256("${encodeType(typeName, types.types)}");\n`;
+    const typeHash = `bytes32 constant public ${typeName.toUpperCase()}_TYPEHASH = keccak256("${encodeType(typeName, types.types)}");\n`;
     const struct = `struct ${typeName} {\n${fields.map((field) => { return `  ${field.type} ${field.name};\n`}).join('')}}\n`;
 
     // Generate signed${TYPE} struct for entryTypes
     if (entryTypes.includes(typeName)) {
       const signedStruct = `
-struct signed${typeName} {
+struct Signed${typeName} {
   bytes signature;
   address signer;
   ${typeName} message;
@@ -154,16 +150,18 @@ function generatePacketHashGetters (types, typeName, fields, packetHashGetters: 
   } else {
     packetHashGetters.push(`
   function ${packetHashGetterName(typeName)} (${typeName} memory _input) public pure returns (bytes32) {
-    ${ LOGGING_ENABLED ? `console.log("${typeName} typehash: ");
-    console.logBytes32(${typeName.toUpperCase()}_TYPEHASH);` : ''}
+    bytes memory encoded = ${encodedTypeGetterName(typeName)}(_input);
+    return keccak256(encoded);
+  }
+  
+ function ${encodedTypeGetterName(typeName)} (${typeName} memory _input) public pure returns (bytes memory) {
     bytes memory encoded = abi.encode(
       ${ typeName.toUpperCase() }_TYPEHASH,
       ${ fields.map(getEncodedValueFor).join(',\n      ') }
     );
-    ${LOGGING_ENABLED ? `console.log("Encoded ${typeName}: ");
-    console.logBytes(encoded);` : ''}
-    return keccak256(encoded);
-  }`);
+    return encoded;
+  }
+  `);
   }
 
   fields.forEach((field) => {
@@ -176,14 +174,19 @@ function generatePacketHashGetters (types, typeName, fields, packetHashGetters: 
 }
 
 function getEncodedValueFor (field) {
-  const basicEncodableTypes = ['address', 'bool', 'bytes32', 'int', 'uint', 'uint256', 'string'];
-  const hashedTypes = ['bytes'];
+  const basicEncodableTypes = ['address', 'bool', 'bytes32', 'int', 'uint', 'uint256'];
+  const hashedTypes = ['bytes', 'string'];
   if (basicEncodableTypes.includes(field.type)) {
     return `_input.${field.name}`;
   }
 
   if (hashedTypes.includes(field.type)) {
-    return `keccak256(_input.${field.name})`;
+    if (field.type === 'bytes') {
+      return `keccak256(_input.${field.name})`;
+    }
+    if (field.type === 'string') {
+      return `keccak256(bytes(_input.${field.name}))`;
+    }
   }
 
   return `${packetHashGetterName(field.type)}(_input.${field.name})`;
@@ -194,6 +197,13 @@ function packetHashGetterName (typeName) {
     return `GET_${typeName.substr(0, typeName.length - 2).toUpperCase()}_ARRAY_PACKETHASH`;
   }
   return `GET_${typeName.toUpperCase()}_PACKETHASH`;
+}
+
+function encodedTypeGetterName(typeName) {
+  if (typeName.includes('[]')) {
+    return `GET_${typeName.substr(0, typeName.length - 2).toUpperCase()}_ARRAY_PACKET`;
+  }
+  return `GET_${typeName.toUpperCase()}_PACKET`;
 }
 
 function generateArrayPacketHashGetter (typeName, packetHashGetters) {
@@ -241,29 +251,29 @@ function generateSolidity <
 
 function generateEntrypointMethods(entryTypes) {
   return entryTypes.map((entryType) => `
-    function verifySigned${entryType}(signed${entryType} memory _input) public view returns (address) {
-      bytes32 packetHash = ${packetHashGetterName(entryType)}(_input.message);
-      bytes32 digest = keccak256(
-        abi.encodePacked(
-          "\\x19\\x01",
-          getDomainHash(),
-          packetHash
-        )
-      );
+  function verifySigned${entryType}(Signed${entryType} memory _input) public view returns (address) {
+    bytes32 packetHash = ${packetHashGetterName(entryType)}(_input.message);
+    bytes32 digest = keccak256(
+      abi.encodePacked(
+        "\\x19\\x01",
+        getDomainHash(),
+        packetHash
+      )
+    );
 
-      if (_input.signer == 0x0000000000000000000000000000000000000000) {
-        address recoveredSigner = recover(
-          digest,
-          _input.signature
-        );
-        return recoveredSigner;
-      } else {
-        // EIP-1271 signature verification
-        bytes4 result = ERC1271Contract(_input.signer).isValidSignature(digest, _input.signature);
-        require(result == 0x1626ba7e, "INVALID_SIGNATURE");
-        return _input.signer;
-      }
+    if (_input.signer == 0x0000000000000000000000000000000000000000) {
+      address recoveredSigner = recover(
+        digest,
+        _input.signature
+      );
+      return recoveredSigner;
+    } else {
+      // EIP-1271 signature verification
+      bytes4 result = ERC1271Contract(_input.signer).isValidSignature(digest, _input.signature);
+      require(result == 0x1626ba7e, "INVALID_SIGNATURE");
+      return _input.signer;
     }
+  }
   `).join('\n');
 }
 
