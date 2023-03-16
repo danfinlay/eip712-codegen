@@ -29,20 +29,24 @@ var path = require('path');
 var encodeType = require('signtypeddata-v5').TypedDataUtils.encodeType;
 var generateFile = function (types, methods, log) {
     if (log === void 0) { log = false; }
-    return "pragma solidity ^0.8.13;\n// SPDX-License-Identifier: MIT\n".concat(log ? 'import "hardhat/console.log";' : '', "\n\n").concat(types, "\n\ncontract EIP712Decoder {\n\n  /**\n  * @dev Recover signer address from a message by using their signature\n  * @param hash bytes32 message, the hash is the signed message. What is recovered is the signer address.\n  * @param sig bytes signature, the signature is generated using web3.eth.sign()\n  */\n  function recover(bytes32 hash, bytes memory sig) internal pure returns (address) {\n    bytes32 r;\n    bytes32 s;\n    uint8 v;\n\n    //Check the signature length\n    if (sig.length != 65) {\n      return (address(0));\n    }\n\n    // Divide the signature in r, s and v variables\n    assembly {\n      r := mload(add(sig, 32))\n      s := mload(add(sig, 64))\n      v := byte(0, mload(add(sig, 96)))\n    }\n// Version of signature should be 27 or 28, but 0 and 1 are also possible versions\n    if (v < 27) {\n      v += 27;\n    }\n\n    // If the version is correct return the signer address\n    if (v != 27 && v != 28) {\n      return (address(0));\n    } else {\n      return ecrecover(hash, v, r, s);\n    }\n  }\n").concat(methods, "\n\n}\n\n");
+    return "pragma solidity ^0.8.13;\n// SPDX-License-Identifier: MIT\n".concat(log ? 'import "hardhat/console.log";' : '', "\n\nabstract contract ERC1271Contract {\n  /**\n   * @dev Should return whether the signature provided is valid for the provided hash\n   * @param _hash      Hash of the data to be signed\n   * @param _signature Signature byte array associated with _hash\n   *\n   * MUST return the bytes4 magic value 0x1626ba7e when function passes.\n   * MUST NOT modify state (using STATICCALL for solc < 0.5, view modifier for solc > 0.5)\n   * MUST allow external calls\n   */ \n  function isValidSignature(\n    bytes32 _hash, \n    bytes memory _signature)\n    public\n    view \n    virtual\n    returns (bytes4 magicValue);\n}\n\nabstract contract EIP712Decoder {\n  function getDomainHash () public view virtual returns (bytes32);\n\n").concat(types, "\n\n  /**\n  * @dev Recover signer address from a message by using their signature\n  * @param hash bytes32 message, the hash is the signed message. What is recovered is the signer address.\n  * @param sig bytes signature, the signature is generated using web3.eth.sign()\n  */\n  function recover(bytes32 hash, bytes memory sig) internal pure returns (address) {\n    bytes32 r;\n    bytes32 s;\n    uint8 v;\n\n    // Check the signature length\n    if (sig.length != 65) {\n      return (address(0));\n    }\n\n    // Divide the signature in r, s and v variables\n    assembly {\n      r := mload(add(sig, 32))\n      s := mload(add(sig, 64))\n      v := byte(0, mload(add(sig, 96)))\n    }\n    // Version of signature should be 27 or 28, but 0 and 1 are also possible versions\n    if (v < 27) {\n      v += 27;\n    }\n\n    // If the version is correct return the signer address\n    if (v != 27 && v != 28) {\n      return (address(0));\n    } else {\n      return ecrecover(hash, v, r, s);\n    }\n  }\n").concat(methods, "\n\n}\n\n");
 };
 var LOGGING_ENABLED = false;
-function generateCodeFrom(types) {
+function generateCodeFrom(types, entryTypes) {
     var results = [];
     var packetHashGetters = [];
     Object.keys(types.types).forEach(function (typeName) {
         var fields = types.types[typeName];
-        var typeHash = "bytes32 constant ".concat(typeName.toUpperCase(), "_TYPEHASH = keccak256(\"").concat(encodeType(typeName, types.types), "\");\n");
+        var typeHash = "bytes32 constant public ".concat(typeName.toUpperCase(), "_TYPEHASH = keccak256(\"").concat(encodeType(typeName, types.types), "\");\n");
         var struct = "struct ".concat(typeName, " {\n").concat(fields.map(function (field) { return "  ".concat(field.type, " ").concat(field.name, ";\n"); }).join(''), "}\n");
+        // Generate signed${TYPE} struct for entryTypes
+        if (entryTypes.includes(typeName)) {
+            var signedStruct = "\nstruct Signed".concat(typeName, " {\n  bytes signature;\n  address signer;\n  ").concat(typeName, " message;\n}\n");
+            results.push({ struct: signedStruct, typeHash: '' });
+        }
         generatePacketHashGetters(types, typeName, fields, packetHashGetters);
         results.push({ struct: struct, typeHash: typeHash });
     });
-    var uniqueGetters = __spreadArray([], __read(new Set(packetHashGetters)), false);
     return { setup: results, packetHashGetters: __spreadArray([], __read(new Set(packetHashGetters)), false) };
 }
 function generatePacketHashGetters(types, typeName, fields, packetHashGetters) {
@@ -51,7 +55,7 @@ function generatePacketHashGetters(types, typeName, fields, packetHashGetters) {
         generateArrayPacketHashGetter(typeName, packetHashGetters);
     }
     else {
-        packetHashGetters.push("\n  function ".concat(packetHashGetterName(typeName), " (").concat(typeName, " memory _input) public pure returns (bytes32) {\n    ").concat(LOGGING_ENABLED ? "console.log(\"".concat(typeName, " typehash: \");\n    console.logBytes32(").concat(typeName.toUpperCase(), "_TYPEHASH);") : '', "\n    bytes memory encoded = abi.encode(\n      ").concat(typeName.toUpperCase(), "_TYPEHASH,\n      ").concat(fields.map(getEncodedValueFor).join(',\n      '), "\n    );\n    ").concat(LOGGING_ENABLED ? "console.log(\"Encoded ".concat(typeName, ": \");\n    console.logBytes(encoded);") : '', "\n    return keccak256(encoded);\n  }"));
+        packetHashGetters.push("\n  function ".concat(packetHashGetterName(typeName), " (").concat(typeName, " memory _input) public pure returns (bytes32) {\n    bytes memory encoded = ").concat(encodedTypeGetterName(typeName), "(_input);\n    return keccak256(encoded);\n  }\n  \n function ").concat(encodedTypeGetterName(typeName), " (").concat(typeName, " memory _input) public pure returns (bytes memory) {\n    bytes memory encoded = abi.encode(\n      ").concat(typeName.toUpperCase(), "_TYPEHASH,\n      ").concat(fields.map(getEncodedValueFor).join(',\n      '), "\n    );\n    return encoded;\n  }\n  "));
     }
     fields.forEach(function (field) {
         if (field.type.includes('[]')) {
@@ -61,13 +65,18 @@ function generatePacketHashGetters(types, typeName, fields, packetHashGetters) {
     return packetHashGetters;
 }
 function getEncodedValueFor(field) {
-    var basicEncodableTypes = ['address', 'bool', 'bytes32', 'int', 'uint', 'uint256', 'string'];
-    var hashedTypes = ['bytes'];
+    var basicEncodableTypes = ['address', 'bool', 'bytes32', 'int', 'uint', 'uint256'];
+    var hashedTypes = ['bytes', 'string'];
     if (basicEncodableTypes.includes(field.type)) {
         return "_input.".concat(field.name);
     }
     if (hashedTypes.includes(field.type)) {
-        return "keccak256(_input.".concat(field.name, ")");
+        if (field.type === 'bytes') {
+            return "keccak256(_input.".concat(field.name, ")");
+        }
+        if (field.type === 'string') {
+            return "keccak256(bytes(_input.".concat(field.name, "))");
+        }
     }
     return "".concat(packetHashGetterName(field.type), "(_input.").concat(field.name, ")");
 }
@@ -77,12 +86,18 @@ function packetHashGetterName(typeName) {
     }
     return "GET_".concat(typeName.toUpperCase(), "_PACKETHASH");
 }
+function encodedTypeGetterName(typeName) {
+    if (typeName.includes('[]')) {
+        return "GET_".concat(typeName.substr(0, typeName.length - 2).toUpperCase(), "_ARRAY_PACKET");
+    }
+    return "GET_".concat(typeName.toUpperCase(), "_PACKET");
+}
 function generateArrayPacketHashGetter(typeName, packetHashGetters) {
     packetHashGetters.push("\n  function ".concat(packetHashGetterName(typeName), " (").concat(typeName, " memory _input) public pure returns (bytes32) {\n    bytes memory encoded;\n    for (uint i = 0; i < _input.length; i++) {\n      encoded = bytes.concat(\n        encoded,\n        ").concat(packetHashGetterName(typeName.substr(0, typeName.length - 2)), "(_input[i])\n      );\n    }\n    ").concat(LOGGING_ENABLED ? "console.log(\"Encoded ".concat(typeName, ": \");\n    console.logBytes(encoded);") : '', "\n    bytes32 hash = keccak256(encoded);\n    return hash;\n  }"));
 }
-function generateSolidity(typeDef, shouldLog) {
+function generateSolidity(typeDef, shouldLog, entryTypes) {
     LOGGING_ENABLED = shouldLog;
-    var _a = generateCodeFrom(typeDef), setup = _a.setup, packetHashGetters = _a.packetHashGetters;
+    var _a = generateCodeFrom(typeDef, entryTypes), setup = _a.setup, packetHashGetters = _a.packetHashGetters;
     var types = [];
     var methods = [];
     setup.forEach(function (type) {
@@ -92,8 +107,14 @@ function generateSolidity(typeDef, shouldLog) {
     packetHashGetters.forEach(function (getterLine) {
         methods.push(getterLine);
     });
+    // Generate entrypoint methods
+    var entrypointMethods = generateEntrypointMethods(entryTypes);
+    methods.push(entrypointMethods);
     var newFileString = generateFile(types.join('\n'), methods.join('\n'), shouldLog);
     return newFileString;
+}
+function generateEntrypointMethods(entryTypes) {
+    return entryTypes.map(function (entryType) { return "\n  function verifySigned".concat(entryType, "(Signed").concat(entryType, " memory _input) public view returns (address) {\n    bytes32 packetHash = ").concat(packetHashGetterName(entryType), "(_input.message);\n    bytes32 digest = keccak256(\n      abi.encodePacked(\n        \"\\x19\\x01\",\n        getDomainHash(),\n        packetHash\n      )\n    );\n\n    if (_input.signer == 0x0000000000000000000000000000000000000000) {\n      address recoveredSigner = recover(\n        digest,\n        _input.signature\n      );\n      return recoveredSigner;\n    } else {\n      // EIP-1271 signature verification\n      bytes4 result = ERC1271Contract(_input.signer).isValidSignature(digest, _input.signature);\n      require(result == 0x1626ba7e, \"INVALID_SIGNATURE\");\n      return _input.signer;\n    }\n  }\n  "); }).join('\n');
 }
 module.exports = {
     generateCodeFrom: generateCodeFrom,

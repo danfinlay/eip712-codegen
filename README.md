@@ -1,8 +1,11 @@
 # EIP 712 Codegen
+This module aims to automate the hard parts of using EIP-712
 
-[EIP 712: Sign Typed Data](https://eips.ethereum.org/EIPS/eip-712) as of 2022 is the most human-readable way of getting signatures from user that are easily parsed into solidity structs.
 
-[The documentation](https://docs.metamask.io/guide/signing-data.html#sign-typed-data-v4) has not always been the greatest, and in particular I think this method has failed to catch on because writing the verification code is a huge pain.
+[EIP 712: Sign Typed Data](https://eips.ethereum.org/EIPS/eip-712) as of 2023 is the most human-readable way of getting signatures from user that are easily parsed into solidity structs.
+
+[The documentation](https://docs.metamask.io/guide/signing-data.html#sign-typed-data-v4) is quite dense, and can be hard to get started with.
+
 
 Well, no more. This module will generate basically all the solidity you need to let users basically sign structs and then mostly just think about the structs you have signed in your code. This should really level up your ability to keep more user actions off-chain and gas-free.
 
@@ -20,18 +23,39 @@ As a module, we are exporting typescript definition files, which can help you ge
 
 ### As a CLI tool:
 
-You point it at a typeDef file (defined as a CommonJS module, [as seen in sampleTypes.js](./sampleTypes.js)), and it then prints out some solidity to the console. You can then pipe it into a file.
+`npm i -g eip712-codegen` or `yarn add -g eip712-codegen` to globally install, and then you can run the command line and pipe the output into a solidity file like so:
 
-Examples:
+`npx eip712-codegen -i ./yourTypes.js >> TypesFile.sol`
 
-```sh
-npx eip712-codegen ./sampleTypes.js > YourTypesFile.sol
+These are the command line options:
+
+```
+Options:
+      --version      Show version number                               [boolean]
+  -i, --input        Input file path                         [string] [required]
+  -e, --entryPoints  Type names to be used as entry points    [array] [required]
+  -l, --log          Enable logging                                    [boolean]
+  -h, --help         Show help                                         [boolean]
 ```
 
-If you're using [hardhat](hardhat.org/) and their [console.log](https://hardhat.org/hardhat-network/#console-log) feature, you can generate a logged version by adding `log`:
+The `input` file is a typeDef file (defined as a CommonJS module, [as seen in sampleTypes.js](./sampleTypes.js)), and it then prints out some solidity to the console. You can then pipe it into a file. The same typedef format is used by signing code for EIP-712, like when suggesting a signature to MetaMask, so this allows you to define these types once and reuse them on the front and backend.
+
+More examples:
+
+input:
+```sh
+npx eip712-codegen --input <input-file-path> --entryPoints <entry-point-1> <entry-point-2> ... --log
+```
+
+Example:
+```sh
+npx eip712-codegen --input sampleTypes.js --entryPoints Type1 Type2 > YourTypesFile.sol
+```
+
+If you're using [hardhat](hardhat.org/) and their [console.log](https://hardhat.org/hardhat-network/#console-log) feature, you can generate a logged version by adding `--log`:
 
 ```sh
-npx eip712-codegen ./sampleTypes.js log > YourTypesFile.sol
+npx eip712-codegen --input sampleTypes.js --entryPoints Type1 Type2 --log > YourTypesFile.sol
 ```
 
 You'll then need to import this typefile into your contract, and inherit from `EIP712Decoder`.
@@ -68,36 +92,19 @@ You'll also need to include this one method that defines your DomainHash, which 
 }
 ```
 
-There's one more thing you have to do, this part will require the most thinking. You'll have to write the method that verifies the top-level signatures. I have not written codegen for this yet, because I don't know which types you want to use as your entry points, and there are some design decisions that are up to you here (in particular, *your entrypoint types are your user-facing security enforcement*, but here is a sample method for verifying a `SignedDelegation` as defined in our [sampleTypes.js](./sampleTypes) file:
+### Entrypoints 
 
+The `--entryPoints` flag generates signature verification code for the specified types (which must also be included in the input file). These verification methods will be of the form `verifySigned${YourType}(Signed${YourType} input) returns (address);`. So if you are signing a struct called `Bid` it will generate a method called `verifySignedBid(SignedBid input) returns (address);`
+
+Returns an `address` of the account that signed this struct.
+
+The `Signed{Type}` struct format looks like this:
 ```solidity
-  function verifyDelegationSignature (SignedDelegation memory signedDelegation) public view returns (address) {
-
-    // Break out the struct that was signed:
-    Delegation memory delegation = signedDelegation.delegation;
-
-    // Get the top-level hash of that struct, as defined just below:
-    bytes32 sigHash = getDelegationTypedDataHash(delegation);
-
-    // The `recover` method comes from the codegen, and will be able to recover from this:
-    address recoveredSignatureSigner = recover(sigHash, signedDelegation.signature);
-    return recoveredSignatureSigner;
-  }
-
-  function getDelegationTypedDataHash(Delegation memory delegation) public view returns (bytes32) {
-    bytes32 digest = keccak256(abi.encodePacked(
-      "\x19\x01",
-
-      // The domainHash is derived from your contract name and address above:
-      domainHash,
-
-      // This last part is calling one of the generated methods.
-      // It must match the name of the struct that is the `primaryType` of this signature.
-      GET_DELEGATION_PACKETHASH(delegation)
-    ));
-    return digest;
-  }
+{
+  bytes signature;
+  address signer;
+  YourType message;
+}
 ```
-
-From there, you should be good! This library is tested to work with `eth_signTypedData_v4` as implemented in MetaMask. I have not yet tested it with ethers.js or other wallets, but there's a good chance it works for simple types, and a chance it works for arrays and structs as well.
-
+For regular EOA signatures, the signer should be set to the zero address (`0x0000000000000000000000000000000000000000`).
+If the `signer` value is set to anything other than the zero address, rather than recover a signature normally, the contract will execute [EIP-1271 style signature recovery](https://eips.ethereum.org/EIPS/eip-1271) which allows contract accounts to perform custom verification logic allowing them to effectively "sign" messages like an EOA does.
