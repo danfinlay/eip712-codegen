@@ -65,7 +65,25 @@ function generatePacketHashGetters(types, typeName, fields, packetHashGetters) {
     return packetHashGetters;
 }
 function getEncodedValueFor(field) {
-    var basicEncodableTypes = ['address', 'bool', 'bytes32', 'int', 'uint', 'uint256'];
+    var basicEncodableTypes = [
+        'address',
+        'bool',
+        'string',
+        'int',
+        'uint',
+        'int8',
+        'uint8',
+        'int16',
+        'uint16',
+        'int256',
+        'uint256',
+        'bytes32',
+        'bytes16',
+        'bytes8',
+        'bytes4',
+        'bytes2',
+        'bytes1',
+    ];
     var hashedTypes = ['bytes', 'string'];
     if (basicEncodableTypes.includes(field.type)) {
         return "_input.".concat(field.name);
