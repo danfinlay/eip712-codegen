@@ -27,7 +27,7 @@ const argv = yargs
   .alias('help', 'h')
   .argv;
 
-const targetPath = argv.input;
+const targetPath = path.resolve(process.cwd(), argv.input);
 const types = require(targetPath);
 const entryPoints = argv.entryPoints;
 const shouldLog = argv.log;
