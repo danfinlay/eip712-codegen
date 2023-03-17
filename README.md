@@ -25,7 +25,7 @@ As a module, we are exporting typescript definition files, which can help you ge
 
 `npm i -g eip712-codegen` or `yarn add -g eip712-codegen` to globally install, and then you can run the command line and pipe the output into a solidity file like so:
 
-`npx eip712-codegen -i ./yourTypes.js >> TypesFile.sol`
+`eip712-codegen -i ./yourTypes.js >> TypesFile.sol`
 
 These are the command line options:
 
@@ -44,18 +44,18 @@ More examples:
 
 input:
 ```sh
-npx eip712-codegen --input <input-file-path> --entryPoints <entry-point-1> <entry-point-2> ... --log
+eip712-codegen --input <input-file-path> --entryPoints <entry-point-1> <entry-point-2> ... --log
 ```
 
 Example:
 ```sh
-npx eip712-codegen --input sampleTypes.js --entryPoints Type1 Type2 > YourTypesFile.sol
+eip712-codegen --input sampleTypes.js --entryPoints Type1 Type2 > YourTypesFile.sol
 ```
 
 If you're using [hardhat](hardhat.org/) and their [console.log](https://hardhat.org/hardhat-network/#console-log) feature, you can generate a logged version by adding `--log`:
 
 ```sh
-npx eip712-codegen --input sampleTypes.js --entryPoints Type1 Type2 --log > YourTypesFile.sol
+eip712-codegen --input sampleTypes.js --entryPoints Type1 Type2 --log > YourTypesFile.sol
 ```
 
 You'll then need to import this typefile into your contract, and inherit from `EIP712Decoder`.
