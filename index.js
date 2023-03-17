@@ -27,6 +27,11 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 exports.__esModule = true;
 var path = require('path');
 var encodeType = require('signtypeddata-v5').TypedDataUtils.encodeType;
+function camelCase(str) {
+    return str.toLowerCase().replace(/_(.)/g, function (match, group1) {
+        return group1.toUpperCase();
+    });
+}
 var generateFile = function (types, methods, log) {
     if (log === void 0) { log = false; }
     return "pragma solidity ^0.8.13;\n// SPDX-License-Identifier: MIT\n".concat(log ? 'import "hardhat/console.log";' : '', "\n\nabstract contract ERC1271Contract {\n  /**\n   * @dev Should return whether the signature provided is valid for the provided hash\n   * @param _hash      Hash of the data to be signed\n   * @param _signature Signature byte array associated with _hash\n   *\n   * MUST return the bytes4 magic value 0x1626ba7e when function passes.\n   * MUST NOT modify state (using STATICCALL for solc < 0.5, view modifier for solc > 0.5)\n   * MUST allow external calls\n   */ \n  function isValidSignature(\n    bytes32 _hash, \n    bytes memory _signature)\n    public\n    view \n    virtual\n    returns (bytes4 magicValue);\n}\n\nabstract contract EIP712Decoder {\n  function getDomainHash () public view virtual returns (bytes32);\n\n").concat(types, "\n\n  /**\n  * @dev Recover signer address from a message by using their signature\n  * @param hash bytes32 message, the hash is the signed message. What is recovered is the signer address.\n  * @param sig bytes signature, the signature is generated using web3.eth.sign()\n  */\n  function recover(bytes32 hash, bytes memory sig) internal pure returns (address) {\n    bytes32 r;\n    bytes32 s;\n    uint8 v;\n\n    // Check the signature length\n    if (sig.length != 65) {\n      return (address(0));\n    }\n\n    // Divide the signature in r, s and v variables\n    assembly {\n      r := mload(add(sig, 32))\n      s := mload(add(sig, 64))\n      v := byte(0, mload(add(sig, 96)))\n    }\n    // Version of signature should be 27 or 28, but 0 and 1 are also possible versions\n    if (v < 27) {\n      v += 27;\n    }\n\n    // If the version is correct return the signer address\n    if (v != 27 && v != 28) {\n      return (address(0));\n    } else {\n      return ecrecover(hash, v, r, s);\n    }\n  }\n").concat(methods, "\n\n}\n\n");
@@ -37,7 +42,7 @@ function generateCodeFrom(types, entryTypes) {
     var packetHashGetters = [];
     Object.keys(types.types).forEach(function (typeName) {
         var fields = types.types[typeName];
-        var typeHash = "bytes32 constant public ".concat(typeName.toUpperCase(), "_TYPEHASH = keccak256(\"").concat(encodeType(typeName, types.types), "\");\n");
+        var typeHash = "bytes32 constant public ".concat(camelCase(typeName.toUpperCase() + '_TYPEHASH'), " = keccak256(\"").concat(encodeType(typeName, types.types), "\");\n");
         var struct = "struct ".concat(typeName, " {\n").concat(fields.map(function (field) { return "  ".concat(field.type, " ").concat(field.name, ";\n"); }).join(''), "}\n");
         // Generate signed${TYPE} struct for entryTypes
         if (entryTypes.includes(typeName)) {
@@ -55,7 +60,7 @@ function generatePacketHashGetters(types, typeName, fields, packetHashGetters) {
         generateArrayPacketHashGetter(typeName, packetHashGetters);
     }
     else {
-        packetHashGetters.push("\n  function ".concat(packetHashGetterName(typeName), " (").concat(typeName, " memory _input) public pure returns (bytes32) {\n    bytes memory encoded = ").concat(encodedTypeGetterName(typeName), "(_input);\n    return keccak256(encoded);\n  }\n  \n function ").concat(encodedTypeGetterName(typeName), " (").concat(typeName, " memory _input) public pure returns (bytes memory) {\n    bytes memory encoded = abi.encode(\n      ").concat(typeName.toUpperCase(), "_TYPEHASH,\n      ").concat(fields.map(getEncodedValueFor).join(',\n      '), "\n    );\n    return encoded;\n  }\n  "));
+        packetHashGetters.push("\n  function ".concat(packetHashGetterName(typeName), " (").concat(typeName, " memory _input) public pure returns (bytes32) {\n    bytes memory encoded = ").concat(encodedTypeGetterName(typeName), "(_input);\n    return keccak256(encoded);\n  }\n  \n function ").concat(encodedTypeGetterName(typeName), " (").concat(typeName, " memory _input) public pure returns (bytes memory) {\n    bytes memory encoded = abi.encode(\n      ").concat(camelCase(typeName.toUpperCase() + '_TYPEHASH'), ",\n      ").concat(fields.map(getEncodedValueFor).join(',\n      '), "\n    );\n    return encoded;\n  }\n  "));
     }
     fields.forEach(function (field) {
         if (field.type.includes('[]')) {
@@ -68,7 +73,6 @@ function getEncodedValueFor(field) {
     var basicEncodableTypes = [
         'address',
         'bool',
-        'string',
         'int',
         'uint',
         'int8',
@@ -99,16 +103,22 @@ function getEncodedValueFor(field) {
     return "".concat(packetHashGetterName(field.type), "(_input.").concat(field.name, ")");
 }
 function packetHashGetterName(typeName) {
-    if (typeName.includes('[]')) {
-        return "GET_".concat(typeName.substr(0, typeName.length - 2).toUpperCase(), "_ARRAY_PACKETHASH");
+    if (typeName === 'EIP712Domain') {
+        return camelCase('GET_EIP_712_DOMAIN_PACKET_HASH');
     }
-    return "GET_".concat(typeName.toUpperCase(), "_PACKETHASH");
+    if (typeName.includes('[]')) {
+        return camelCase("GET_".concat(typeName.substr(0, typeName.length - 2).toUpperCase(), "_ARRAY_PACKET_HASH"));
+    }
+    return camelCase("GET_".concat(typeName.toUpperCase(), "_PACKET_HASH"));
 }
 function encodedTypeGetterName(typeName) {
-    if (typeName.includes('[]')) {
-        return "GET_".concat(typeName.substr(0, typeName.length - 2).toUpperCase(), "_ARRAY_PACKET");
+    if (typeName === 'EIP712Domain') {
+        return camelCase('GET_EIP_712_DOMAIN_PACKET');
     }
-    return "GET_".concat(typeName.toUpperCase(), "_PACKET");
+    if (typeName.includes('[]')) {
+        return camelCase("GET_".concat(typeName.substr(0, typeName.length - 2).toUpperCase(), "_ARRAY_PACKET"));
+    }
+    return camelCase("GET_".concat(typeName.toUpperCase(), "_PACKET"));
 }
 function generateArrayPacketHashGetter(typeName, packetHashGetters) {
     packetHashGetters.push("\n  function ".concat(packetHashGetterName(typeName), " (").concat(typeName, " memory _input) public pure returns (bytes32) {\n    bytes memory encoded;\n    for (uint i = 0; i < _input.length; i++) {\n      encoded = bytes.concat(\n        encoded,\n        ").concat(packetHashGetterName(typeName.substr(0, typeName.length - 2)), "(_input[i])\n      );\n    }\n    ").concat(LOGGING_ENABLED ? "console.log(\"Encoded ".concat(typeName, ": \");\n    console.logBytes(encoded);") : '', "\n    bytes32 hash = keccak256(encoded);\n    return hash;\n  }"));

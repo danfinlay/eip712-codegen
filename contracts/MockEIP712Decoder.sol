@@ -7,7 +7,7 @@ contract MockEIP712Decoder is EIP712Decoder {
     bytes32 domainHash;
     constructor(uint256 chainId) {
         domainHash = keccak256(abi.encode(
-            EIP712DOMAIN_TYPEHASH,
+            eip712domainTypehash,
             keccak256(bytes("MockEIP712Decoder")),
             keccak256(bytes("1")),
             chainId,

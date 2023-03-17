@@ -2,6 +2,11 @@ const path = require('path');
 const {
   encodeType,
 } = require('signtypeddata-v5').TypedDataUtils;
+function camelCase (str) {
+  return str.toLowerCase().replace(/_(.)/g, function(match, group1) {
+    return group1.toUpperCase();
+  });
+}
 
 export interface MessageTypeProperty {
   name: string;
@@ -122,7 +127,7 @@ function generateCodeFrom(types, entryTypes) {
   const packetHashGetters: Array<string> = [];
   Object.keys(types.types).forEach((typeName) => {
     const fields = types.types[typeName];
-    const typeHash = `bytes32 constant public ${typeName.toUpperCase()}_TYPEHASH = keccak256("${encodeType(typeName, types.types)}");\n`;
+    const typeHash = `bytes32 constant public ${camelCase(typeName.toUpperCase()+'_TYPEHASH')} = keccak256("${encodeType(typeName, types.types)}");\n`;
     const struct = `struct ${typeName} {\n${fields.map((field) => { return `  ${field.type} ${field.name};\n`}).join('')}}\n`;
 
     // Generate signed${TYPE} struct for entryTypes
@@ -156,7 +161,7 @@ function generatePacketHashGetters (types, typeName, fields, packetHashGetters: 
   
  function ${encodedTypeGetterName(typeName)} (${typeName} memory _input) public pure returns (bytes memory) {
     bytes memory encoded = abi.encode(
-      ${ typeName.toUpperCase() }_TYPEHASH,
+      ${ camelCase(typeName.toUpperCase() + '_TYPEHASH') },
       ${ fields.map(getEncodedValueFor).join(',\n      ') }
     );
     return encoded;
@@ -177,7 +182,6 @@ function getEncodedValueFor (field) {
   const basicEncodableTypes = [
     'address',
     'bool',
-    'string',
     'int',
     'uint',
     'int8',
@@ -211,17 +215,23 @@ function getEncodedValueFor (field) {
 }
 
 function packetHashGetterName (typeName) {
-  if (typeName.includes('[]')) {
-    return `GET_${typeName.substr(0, typeName.length - 2).toUpperCase()}_ARRAY_PACKETHASH`;
+  if (typeName === 'EIP712Domain') {
+    return camelCase('GET_EIP_712_DOMAIN_PACKET_HASH');
   }
-  return `GET_${typeName.toUpperCase()}_PACKETHASH`;
+  if (typeName.includes('[]')) {
+    return camelCase(`GET_${typeName.substr(0, typeName.length - 2).toUpperCase()}_ARRAY_PACKET_HASH`);
+  }
+  return camelCase(`GET_${typeName.toUpperCase()}_PACKET_HASH`);
 }
 
 function encodedTypeGetterName(typeName) {
-  if (typeName.includes('[]')) {
-    return `GET_${typeName.substr(0, typeName.length - 2).toUpperCase()}_ARRAY_PACKET`;
+  if (typeName === 'EIP712Domain') {
+    return camelCase('GET_EIP_712_DOMAIN_PACKET');
   }
-  return `GET_${typeName.toUpperCase()}_PACKET`;
+  if (typeName.includes('[]')) {
+    return camelCase(`GET_${typeName.substr(0, typeName.length - 2).toUpperCase()}_ARRAY_PACKET`);
+  }
+  return camelCase(`GET_${typeName.toUpperCase()}_PACKET`);
 }
 
 function generateArrayPacketHashGetter (typeName, packetHashGetters) {

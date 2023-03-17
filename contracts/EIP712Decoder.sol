@@ -31,7 +31,7 @@ struct EIP712Domain {
   address verifyingContract;
 }
 
-bytes32 constant public EIP712DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+bytes32 constant public eip712domainTypehash = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
 
 
 struct SignedPerson {
@@ -46,7 +46,7 @@ struct Person {
   uint256 age;
 }
 
-bytes32 constant public PERSON_TYPEHASH = keccak256("Person(string name,uint256 age)");
+bytes32 constant public personTypehash = keccak256("Person(string name,uint256 age)");
 
 
   /**
@@ -83,14 +83,14 @@ bytes32 constant public PERSON_TYPEHASH = keccak256("Person(string name,uint256 
     }
   }
 
-  function GET_EIP712DOMAIN_PACKETHASH (EIP712Domain memory _input) public pure returns (bytes32) {
-    bytes memory encoded = GET_EIP712DOMAIN_PACKET(_input);
+  function getEip712DomainPacketHash (EIP712Domain memory _input) public pure returns (bytes32) {
+    bytes memory encoded = getEip712DomainPacket(_input);
     return keccak256(encoded);
   }
   
- function GET_EIP712DOMAIN_PACKET (EIP712Domain memory _input) public pure returns (bytes memory) {
+ function getEip712DomainPacket (EIP712Domain memory _input) public pure returns (bytes memory) {
     bytes memory encoded = abi.encode(
-      EIP712DOMAIN_TYPEHASH,
+      eip712domainTypehash,
       keccak256(bytes(_input.name)),
       keccak256(bytes(_input.version)),
       _input.chainId,
@@ -100,14 +100,14 @@ bytes32 constant public PERSON_TYPEHASH = keccak256("Person(string name,uint256 
   }
   
 
-  function GET_PERSON_PACKETHASH (Person memory _input) public pure returns (bytes32) {
-    bytes memory encoded = GET_PERSON_PACKET(_input);
+  function getPersonPacketHash (Person memory _input) public pure returns (bytes32) {
+    bytes memory encoded = getPersonPacket(_input);
     return keccak256(encoded);
   }
   
- function GET_PERSON_PACKET (Person memory _input) public pure returns (bytes memory) {
+ function getPersonPacket (Person memory _input) public pure returns (bytes memory) {
     bytes memory encoded = abi.encode(
-      PERSON_TYPEHASH,
+      personTypehash,
       keccak256(bytes(_input.name)),
       _input.age
     );
@@ -116,7 +116,7 @@ bytes32 constant public PERSON_TYPEHASH = keccak256("Person(string name,uint256 
   
 
   function verifySignedPerson(SignedPerson memory _input) public view returns (address) {
-    bytes32 packetHash = GET_PERSON_PACKETHASH(_input.message);
+    bytes32 packetHash = getPersonPacketHash(_input.message);
     bytes32 digest = keccak256(
       abi.encodePacked(
         "\x19\x01",

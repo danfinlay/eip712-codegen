@@ -89,7 +89,7 @@ describe('EIP712Decoder', function () {
   });
 
   it('should generate the correct person type hash', async function () {
-    const solidityPersonPackethash = await contract.PERSON_TYPEHASH();
+    const solidityPersonPackethash = await contract.personTypehash();
     const personTypestring = TypedDataUtils.encodeType('Person', typedData.types).toString('hex');
     const jsPersonPackethash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(personTypestring));
     expect(solidityPersonPackethash).to.equal(jsPersonPackethash);
@@ -107,7 +107,7 @@ describe('EIP712Decoder', function () {
       typedData.types,
       'V4'
     );
-    const solEncoded = await contract.GET_PERSON_PACKET(person);
+    const solEncoded = await contract.getPersonPacket(person);
     expect(solEncoded).to.equal('0x' + encoded.toString('hex'));
   });
 
@@ -117,7 +117,7 @@ describe('EIP712Decoder', function () {
       age: 30,
     };
 
-    const domainHash = await contract.GET_PERSON_PACKETHASH(person);
+    const domainHash = await contract.getPersonPacketHash(person);
 
     // Check if the domain hash is correct
     expect(domainHash).to.equal('0x' + TypedDataUtils.hashStruct(
