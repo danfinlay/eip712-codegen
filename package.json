@@ -1,6 +1,6 @@
 {
   "name": "eip712-codegen",
-  "version": "6.0.0",
+  "version": "6.0.1",
   "description": "A utility for generating Solidity code for recovering signatures using the EIP-712 signTypedData schema.",
   "main": "index.js",
   "bin": {
