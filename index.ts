@@ -155,16 +155,11 @@ function generatePacketHashGetters (types, typeName, fields, packetHashGetters: 
   } else {
     packetHashGetters.push(`
   function ${packetHashGetterName(typeName)} (${typeName} memory _input) public pure returns (bytes32) {
-    bytes memory encoded = ${encodedTypeGetterName(typeName)}(_input);
-    return keccak256(encoded);
-  }
-  
- function ${encodedTypeGetterName(typeName)} (${typeName} memory _input) public pure returns (bytes memory) {
     bytes memory encoded = abi.encode(
       ${ camelCase(typeName.toUpperCase() + '_TYPEHASH') },
       ${ fields.map(getEncodedValueFor).join(',\n      ') }
     );
-    return encoded;
+    return keccak256(encoded);
   }
   `);
   }

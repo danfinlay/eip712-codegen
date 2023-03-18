@@ -60,7 +60,7 @@ function generatePacketHashGetters(types, typeName, fields, packetHashGetters) {
         generateArrayPacketHashGetter(typeName, packetHashGetters);
     }
     else {
-        packetHashGetters.push("\n  function ".concat(packetHashGetterName(typeName), " (").concat(typeName, " memory _input) public pure returns (bytes32) {\n    bytes memory encoded = ").concat(encodedTypeGetterName(typeName), "(_input);\n    return keccak256(encoded);\n  }\n  \n function ").concat(encodedTypeGetterName(typeName), " (").concat(typeName, " memory _input) public pure returns (bytes memory) {\n    bytes memory encoded = abi.encode(\n      ").concat(camelCase(typeName.toUpperCase() + '_TYPEHASH'), ",\n      ").concat(fields.map(getEncodedValueFor).join(',\n      '), "\n    );\n    return encoded;\n  }\n  "));
+        packetHashGetters.push("\n  function ".concat(packetHashGetterName(typeName), " (").concat(typeName, " memory _input) public pure returns (bytes32) {\n    bytes memory encoded = abi.encode(\n      ").concat(camelCase(typeName.toUpperCase() + '_TYPEHASH'), ",\n      ").concat(fields.map(getEncodedValueFor).join(',\n      '), "\n    );\n    return keccak256(encoded);\n  }\n  "));
     }
     fields.forEach(function (field) {
         if (field.type.includes('[]')) {

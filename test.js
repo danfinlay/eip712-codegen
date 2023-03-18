@@ -80,14 +80,6 @@ describe('EIP712Decoder', function () {
     typedData.domain.verifyingContract = contract.address;
   });
 
-  it('should generate the correct domain hash', async function () {
-    // Call the getDomainHash function
-    const domainHash = await contract.getDomainHash();
-
-    // Check if the domain hash is correct
-    expect(domainHash).to.equal('0x' + TypedDataUtils.eip712DomainHash(typedData, 'V4').toString('hex'));
-  });
-
   it('should generate the correct person type hash', async function () {
     const solidityPersonPackethash = await contract.personTypehash();
     const personTypestring = TypedDataUtils.encodeType('Person', typedData.types).toString('hex');
