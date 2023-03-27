@@ -52,6 +52,8 @@ const generateFile = (types, methods, log = false) => `pragma solidity ^0.8.13;
 // SPDX-License-Identifier: MIT
 ${log ? 'import "hardhat/console.log";' : ''}
 
+${types}
+
 abstract contract ERC1271Contract {
   /**
    * @dev Should return whether the signature provided is valid for the provided hash
@@ -74,7 +76,6 @@ abstract contract ERC1271Contract {
 abstract contract EIP712Decoder {
   function getDomainHash () public view virtual returns (bytes32);
 
-${types}
 
   /**
   * @dev Recover signer address from a message by using their signature
