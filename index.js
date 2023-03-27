@@ -42,7 +42,7 @@ function generateCodeFrom(types, entryTypes) {
     var packetHashGetters = [];
     Object.keys(types.types).forEach(function (typeName) {
         var fields = types.types[typeName];
-        var typeHash = "bytes32 constant public ".concat(camelCase(typeName.toUpperCase() + '_TYPEHASH'), " = keccak256(\"").concat(encodeType(typeName, types.types), "\");\n");
+        var typeHash = "bytes32 constant ".concat(camelCase(typeName.toUpperCase() + '_TYPEHASH'), " = keccak256(\"").concat(encodeType(typeName, types.types), "\");\n");
         var struct = "struct ".concat(typeName, " {\n").concat(fields.map(function (field) { return "  ".concat(field.type, " ").concat(field.name, ";\n"); }).join(''), "}\n");
         // Generate signed${TYPE} struct for entryTypes
         if (entryTypes.includes(typeName)) {

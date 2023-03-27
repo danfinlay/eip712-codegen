@@ -128,7 +128,7 @@ function generateCodeFrom(types, entryTypes) {
   const packetHashGetters: Array<string> = [];
   Object.keys(types.types).forEach((typeName) => {
     const fields = types.types[typeName];
-    const typeHash = `bytes32 constant public ${camelCase(typeName.toUpperCase()+'_TYPEHASH')} = keccak256("${encodeType(typeName, types.types)}");\n`;
+    const typeHash = `bytes32 constant ${camelCase(typeName.toUpperCase()+'_TYPEHASH')} = keccak256("${encodeType(typeName, types.types)}");\n`;
     const struct = `struct ${typeName} {\n${fields.map((field) => { return `  ${field.type} ${field.name};\n`}).join('')}}\n`;
 
     // Generate signed${TYPE} struct for entryTypes
