@@ -174,6 +174,11 @@ function generateCodeFrom(types, entryTypes: string[]) {
   });
 
   Object.keys(types.types).forEach((typeName) => {
+    // Skip it if it starts with "Signed":
+    if (typeName.startsWith("Signed")) {
+      return;
+    }
+
     orderedTypes.push({
       name: typeName,
       fields: types.types[typeName],

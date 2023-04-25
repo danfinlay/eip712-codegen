@@ -77,6 +77,10 @@ function generateCodeFrom(types, entryTypes) {
         };
     });
     Object.keys(types.types).forEach(function (typeName) {
+        // Skip it if it starts with "Signed":
+        if (typeName.startsWith("Signed")) {
+            return;
+        }
         orderedTypes.push({
             name: typeName,
             fields: types.types[typeName]
