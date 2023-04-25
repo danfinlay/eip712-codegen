@@ -11,6 +11,12 @@ const argv = yargs
     demandOption: true,
     type: 'string',
   })
+  .option('test', {
+    alias: 't',
+    describe: 'Just testinawerareg',
+    demandOption: false,
+    type: 'string',
+  })
   .option('entryPoints', {
     alias: 'e',
     describe: 'Type names to be used as entry points',
@@ -31,5 +37,6 @@ const targetPath = path.resolve(process.cwd(), argv.input);
 const types = require(targetPath);
 const entryPoints = argv.entryPoints;
 const shouldLog = argv.log;
+
 
 console.log(typesToCode.generateSolidity(types, shouldLog, entryPoints));

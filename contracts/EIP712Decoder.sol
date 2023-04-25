@@ -2,6 +2,31 @@ pragma solidity ^0.8.13;
 // SPDX-License-Identifier: MIT
 
 
+struct EIP712Domain {
+  string name;
+  string version;
+  uint256 chainId;
+  address verifyingContract;
+}
+
+bytes32 constant eip712domainTypehash = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+
+
+struct SignedPerson {
+  bytes signature;
+  address signer;
+  Person message;
+}
+
+
+struct Person {
+  string name;
+  uint256 age;
+}
+
+bytes32 constant personTypehash = keccak256("Person(string name,uint256 age)");
+
+
 abstract contract ERC1271Contract {
   /**
    * @dev Should return whether the signature provided is valid for the provided hash
@@ -23,30 +48,6 @@ abstract contract ERC1271Contract {
 
 abstract contract EIP712Decoder {
   function getDomainHash () public view virtual returns (bytes32);
-
-struct EIP712Domain {
-  string name;
-  string version;
-  uint256 chainId;
-  address verifyingContract;
-}
-
-bytes32 constant public eip712domainTypehash = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
-
-
-struct SignedPerson {
-  bytes signature;
-  address signer;
-  Person message;
-}
-
-
-struct Person {
-  string name;
-  uint256 age;
-}
-
-bytes32 constant public personTypehash = keccak256("Person(string name,uint256 age)");
 
 
   /**
@@ -83,37 +84,32 @@ bytes32 constant public personTypehash = keccak256("Person(string name,uint256 a
     }
   }
 
-  function getEip712DomainPacketHash (EIP712Domain memory _input) public pure returns (bytes32) {
-    bytes memory encoded = getEip712DomainPacket(_input);
-    return keccak256(encoded);
-  }
-  
- function getEip712DomainPacket (EIP712Domain memory _input) public pure returns (bytes memory) {
-    bytes memory encoded = abi.encode(
-      eip712domainTypehash,
-      keccak256(bytes(_input.name)),
+function getEip712DomainPacketHash (EIP712Domain memory _input) public pure returns (bytes32) {
+  bytes memory encoded = abi.encode(
+    eip712domainTypehash,
+    keccak256(bytes(_input.name)),
       keccak256(bytes(_input.version)),
       _input.chainId,
       _input.verifyingContract
-    );
-    return encoded;
-  }
-  
+  );
+  return keccak256(encoded);
+}
 
-  function getPersonPacketHash (Person memory _input) public pure returns (bytes32) {
-    bytes memory encoded = getPersonPacket(_input);
-    return keccak256(encoded);
-  }
-  
- function getPersonPacket (Person memory _input) public pure returns (bytes memory) {
-    bytes memory encoded = abi.encode(
-      personTypehash,
-      keccak256(bytes(_input.name)),
+
+function getPersonPacketHash(SignedPerson memory _input) public pure returns (bytes32) {
+  return getPersonPacketHash(_input.message);
+}
+
+
+function getPersonPacketHash (Person memory _input) public pure returns (bytes32) {
+  bytes memory encoded = abi.encode(
+    personTypehash,
+    keccak256(bytes(_input.name)),
       _input.age
-    );
-    return encoded;
-  }
-  
+  );
+  return keccak256(encoded);
+}
+
 
   function verifySignedPerson(SignedPerson memory _input) public view returns (address) {
     bytes32 packetHash = getPersonPacketHash(_input.message);

@@ -8,6 +8,25 @@ function camelCase (str) {
   });
 }
 
+const basicEncodableTypes = [
+  'address',
+  'bool',
+  'int',
+  'uint',
+  'int8',
+  'uint8',
+  'int16',
+  'uint16',
+  'int256',
+  'uint256',
+  'bytes32',
+  'bytes16',
+  'bytes8',
+  'bytes4',
+  'bytes2',
+  'bytes1',
+];
+
 export interface MessageTypeProperty {
   name: string;
   type: string;
@@ -122,26 +141,51 @@ type Result = {
   typeHash: string;
 }
 
-function generateCodeFrom(types, entryTypes) {
+type Field = {
+  name: string;
+  type: string;
+}
+function generateCodeFrom(types, entryTypes: string[]) {
   let results: Result[] = [];
 
   const packetHashGetters: Array<string> = [];
+
+  /**
+   * We order the types so the signed types can be generated before any types that may need to depend on them.
+   */
+  const orderedTypes: {
+    name: string;
+    fields: Field[];
+  }[] = entryTypes.map((typeName) => {
+    types.types[`Signed${typeName}`] = [
+      { name: "message", type: typeName },
+      { name: "signature", type: "bytes" },
+      { name: "signer", type: "address"},
+    ];
+
+    return {
+      name: `Signed${typeName}`,
+      fields: [
+        { name: "message", type: typeName },
+        { name: "signature", type: "bytes" },
+        { name: "signer", type: "address"},
+      ]
+    }
+  });
+
   Object.keys(types.types).forEach((typeName) => {
-    const fields = types.types[typeName];
+    orderedTypes.push({
+      name: typeName,
+      fields: types.types[typeName],
+    });
+  });
+
+  orderedTypes.forEach((type) => {
+    const typeName = type.name;
+    const fields = type.fields;
+
     const typeHash = `bytes32 constant ${camelCase(typeName.toUpperCase()+'_TYPEHASH')} = keccak256("${encodeType(typeName, types.types)}");\n`;
     const struct = `struct ${typeName} {\n${fields.map((field) => { return `  ${field.type} ${field.name};\n`}).join('')}}\n`;
-
-    // Generate signed${TYPE} struct for entryTypes
-    if (entryTypes.includes(typeName)) {
-      const signedStruct = `
-struct Signed${typeName} {
-  bytes signature;
-  address signer;
-  ${typeName} message;
-}
-`;
-      results.push({ struct: signedStruct, typeHash: '' });
-    }
 
     generatePacketHashGetters(types, typeName, fields, packetHashGetters);
     results.push({ struct, typeHash });
@@ -150,49 +194,49 @@ struct Signed${typeName} {
   return { setup: results, packetHashGetters: [...new Set(packetHashGetters)] };
 }
 
-function generatePacketHashGetters (types, typeName, fields, packetHashGetters: Array<string> = []) {
-  if (typeName.includes('[]')) {
-    generateArrayPacketHashGetter(typeName, packetHashGetters);
-  } else {
-    packetHashGetters.push(`
-  function ${packetHashGetterName(typeName)} (${typeName} memory _input) public pure returns (bytes32) {
-    bytes memory encoded = abi.encode(
-      ${ camelCase(typeName.toUpperCase() + '_TYPEHASH') },
-      ${ fields.map(getEncodedValueFor).join(',\n      ') }
-    );
-    return keccak256(encoded);
-  }
-  `);
-  }
-
+function generatePacketHashGetters(types, typeName, fields, packetHashGetters: Array<string> = []) {
   fields.forEach((field) => {
-    if (field.type.includes('[]')) {
-      generateArrayPacketHashGetter(field.type, packetHashGetters);
+    const arrayMatch = field.type.match(/(.+)\[\]/);
+    if (arrayMatch) {
+      const basicType = arrayMatch[1];
+      if (types.types[basicType]) {
+        packetHashGetters.push(`
+function ${packetHashGetterName(field.type)} (${field.type} memory _input) public pure returns (bytes32) {
+  bytes memory encoded;
+  // HELLO
+  for (uint i = 0; i < _input.length; i++) {
+    encoded = abi.encodePacked(encoded, ${packetHashGetterName(basicType)}(_input[i]));
+  }
+  return keccak256(encoded);
+}
+`);
+      } else {
+        packetHashGetters.push(`
+function ${packetHashGetterName(field.type)} (${field.type} memory _input) public pure returns (bytes32) {
+  return keccak256(abi.encodePacked(_input));
+}
+`);
+      }
+    } else {
+      packetHashGetters.push(`
+function ${packetHashGetterName(typeName)} (${typeName} memory _input) public pure returns (bytes32) {
+  bytes memory encoded = abi.encode(
+    ${camelCase(typeName.toUpperCase() + '_TYPEHASH')},
+    ${fields.map(getEncodedValueFor).join(',\n      ')}
+  );
+  return keccak256(encoded);
+}
+`);
     }
   });
 
   return packetHashGetters;
 }
 
-function getEncodedValueFor (field) {
-  const basicEncodableTypes = [
-    'address',
-    'bool',
-    'int',
-    'uint',
-    'int8',
-    'uint8',
-    'int16',
-    'uint16',
-    'int256',
-    'uint256',
-    'bytes32',
-    'bytes16',
-    'bytes8',
-    'bytes4',
-    'bytes2',
-    'bytes1',
-  ];
+function getEncodedValueFor (field: {
+  name: string;
+  type: string;
+}) {
   const hashedTypes = ['bytes', 'string'];
   if (basicEncodableTypes.includes(field.type)) {
     return `_input.${field.name}`;
@@ -220,16 +264,11 @@ function packetHashGetterName (typeName) {
   return camelCase(`GET_${typeName.toUpperCase()}_PACKET_HASH`);
 }
 
-function encodedTypeGetterName(typeName) {
-  if (typeName === 'EIP712Domain') {
-    return camelCase('GET_EIP_712_DOMAIN_PACKET');
-  }
-  if (typeName.includes('[]')) {
-    return camelCase(`GET_${typeName.substr(0, typeName.length - 2).toUpperCase()}_ARRAY_PACKET`);
-  }
-  return camelCase(`GET_${typeName.toUpperCase()}_PACKET`);
-}
-
+/**
+ * For encoding arrays of structs.
+ * @param typeName 
+ * @param packetHashGetters 
+ */
 function generateArrayPacketHashGetter (typeName, packetHashGetters) {
   packetHashGetters.push(`
   function ${packetHashGetterName(typeName)} (${typeName} memory _input) public pure returns (bytes32) {
