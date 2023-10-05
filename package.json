@@ -31,6 +31,7 @@
   },
   "homepage": "https://github.com/danfinlay/eip712-codegen#readme",
   "dependencies": {
+    "change-case-all": "^1.0.15",
     "commander": "^9.2.0",
     "signtypeddata-v5": "^5.0.1"
   },
