@@ -27,11 +27,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 exports.__esModule = true;
 var path = require('path');
 var encodeType = require('signtypeddata-v5').TypedDataUtils.encodeType;
-function camelCase(str) {
-    return str.toLowerCase().replace(/_(.)/g, function (match, group1) {
-        return group1.toUpperCase();
-    });
-}
+var change_case_all_1 = require("change-case-all");
 var basicEncodableTypes = [
     'address',
     'bool',
@@ -89,7 +85,7 @@ function generateCodeFrom(types, entryTypes) {
     orderedTypes.forEach(function (type) {
         var typeName = type.name;
         var fields = type.fields;
-        var typeHash = "bytes32 constant ".concat(camelCase(typeName.toUpperCase() + '_TYPEHASH'), " = keccak256(\"").concat(encodeType(typeName, types.types), "\");\n");
+        var typeHash = "bytes32 constant ".concat((0, change_case_all_1.camelCase)((0, change_case_all_1.snakeCase)(typeName).toUpperCase() + '_TYPEHASH'), " = keccak256(\"").concat(encodeType(typeName, types.types), "\");\n");
         var struct = "struct ".concat(typeName, " {\n").concat(fields.map(function (field) { return "  ".concat(field.type, " ").concat(field.name, ";\n"); }).join(''), "}\n");
         generatePacketHashGetters(types, typeName, fields, packetHashGetters);
         results.push({ struct: struct, typeHash: typeHash });
@@ -110,7 +106,7 @@ function generatePacketHashGetters(types, typeName, fields, packetHashGetters) {
             }
         }
         else {
-            packetHashGetters.push("\nfunction ".concat(packetHashGetterName(typeName), " (").concat(typeName, " memory _input) public pure returns (bytes32) {\n  bytes memory encoded = abi.encode(\n    ").concat(camelCase(typeName.toUpperCase() + '_TYPEHASH'), ",\n    ").concat(fields.map(getEncodedValueFor).join(',\n      '), "\n  );\n  return keccak256(encoded);\n}\n"));
+            packetHashGetters.push("\nfunction ".concat(packetHashGetterName(typeName), " (").concat(typeName, " memory _input) public pure returns (bytes32) {\n  bytes memory encoded = abi.encode(\n    ").concat((0, change_case_all_1.camelCase)((0, change_case_all_1.snakeCase)(typeName).toUpperCase() + '_TYPEHASH'), ",\n    ").concat(fields.map(getEncodedValueFor).join(',\n      '), "\n  );\n  return keccak256(encoded);\n}\n"));
         }
     });
     return packetHashGetters;
@@ -132,12 +128,12 @@ function getEncodedValueFor(field) {
 }
 function packetHashGetterName(typeName) {
     if (typeName === 'EIP712Domain') {
-        return camelCase('GET_EIP_712_DOMAIN_PACKET_HASH');
+        return (0, change_case_all_1.camelCase)('GET_EIP_712_DOMAIN_PACKET_HASH');
     }
     if (typeName.includes('[]')) {
-        return camelCase("GET_".concat(typeName.substr(0, typeName.length - 2).toUpperCase(), "_ARRAY_PACKET_HASH"));
+        return (0, change_case_all_1.camelCase)("GET_".concat((0, change_case_all_1.snakeCase)(typeName.substr(0, typeName.length - 2)).toUpperCase(), "_ARRAY_PACKET_HASH"));
     }
-    return camelCase("GET_".concat(typeName.toUpperCase(), "_PACKET_HASH"));
+    return (0, change_case_all_1.camelCase)("GET_".concat((0, change_case_all_1.snakeCase)(typeName).toUpperCase(), "_PACKET_HASH"));
 }
 /**
  * For encoding arrays of structs.

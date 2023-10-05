@@ -2,11 +2,9 @@ const path = require('path');
 const {
   encodeType,
 } = require('signtypeddata-v5').TypedDataUtils;
-function camelCase (str) {
-  return str.toLowerCase().replace(/_(.)/g, function(match, group1) {
-    return group1.toUpperCase();
-  });
-}
+import { camelCase, snakeCase } from 'change-case-all';
+
+
 
 const basicEncodableTypes = [
   'address',
@@ -189,7 +187,7 @@ function generateCodeFrom(types, entryTypes: string[]) {
     const typeName = type.name;
     const fields = type.fields;
 
-    const typeHash = `bytes32 constant ${camelCase(typeName.toUpperCase()+'_TYPEHASH')} = keccak256("${encodeType(typeName, types.types)}");\n`;
+    const typeHash = `bytes32 constant ${camelCase(snakeCase(typeName).toUpperCase()+'_TYPEHASH')} = keccak256("${encodeType(typeName, types.types)}");\n`;
     const struct = `struct ${typeName} {\n${fields.map((field) => { return `  ${field.type} ${field.name};\n`}).join('')}}\n`;
 
     generatePacketHashGetters(types, typeName, fields, packetHashGetters);
@@ -226,7 +224,7 @@ function ${packetHashGetterName(field.type)} (${field.type} memory _input) publi
       packetHashGetters.push(`
 function ${packetHashGetterName(typeName)} (${typeName} memory _input) public pure returns (bytes32) {
   bytes memory encoded = abi.encode(
-    ${camelCase(typeName.toUpperCase() + '_TYPEHASH')},
+    ${camelCase(snakeCase(typeName).toUpperCase() + '_TYPEHASH')},
     ${fields.map(getEncodedValueFor).join(',\n      ')}
   );
   return keccak256(encoded);
@@ -264,9 +262,9 @@ function packetHashGetterName (typeName) {
     return camelCase('GET_EIP_712_DOMAIN_PACKET_HASH');
   }
   if (typeName.includes('[]')) {
-    return camelCase(`GET_${typeName.substr(0, typeName.length - 2).toUpperCase()}_ARRAY_PACKET_HASH`);
+    return camelCase(`GET_${snakeCase(typeName.substr(0, typeName.length - 2)).toUpperCase()}_ARRAY_PACKET_HASH`);
   }
-  return camelCase(`GET_${typeName.toUpperCase()}_PACKET_HASH`);
+  return camelCase(`GET_${snakeCase(typeName).toUpperCase()}_PACKET_HASH`);
 }
 
 /**
