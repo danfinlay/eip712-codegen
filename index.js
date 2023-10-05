@@ -106,7 +106,7 @@ function generatePacketHashGetters(types, typeName, fields, packetHashGetters) {
             }
         }
         else {
-            packetHashGetters.push("\nfunction ".concat(packetHashGetterName(typeName), " (").concat(typeName, " memory _input) public pure returns (bytes32) {\n  bytes memory encoded = abi.encode(\n    ").concat((0, change_case_all_1.camelCase)(typeName.toUpperCase() + '_TYPEHASH'), ",\n    ").concat(fields.map(getEncodedValueFor).join(',\n      '), "\n  );\n  return keccak256(encoded);\n}\n"));
+            packetHashGetters.push("\nfunction ".concat(packetHashGetterName(typeName), " (").concat(typeName, " memory _input) public pure returns (bytes32) {\n  bytes memory encoded = abi.encode(\n    ").concat((0, change_case_all_1.camelCase)((0, change_case_all_1.snakeCase)(typeName).toUpperCase() + '_TYPEHASH'), ",\n    ").concat(fields.map(getEncodedValueFor).join(',\n      '), "\n  );\n  return keccak256(encoded);\n}\n"));
         }
     });
     return packetHashGetters;
